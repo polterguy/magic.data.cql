@@ -3,9 +3,11 @@
  */
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Microsoft.Extensions.Configuration;
 using Cassandra;
 using magic.node.contracts;
 using magic.node.extensions;
@@ -14,6 +16,17 @@ namespace magic.io.scylla
 {
     public class ScyllaFileService : IFileService
     {
+        readonly IConfiguration _configuration;
+
+        /// <summary>
+        /// Creates an instance of your type.
+        /// </summary>
+        /// <param name="configuration">Configuration needed to retrieve connection settings to ScyllaDB.</param>
+        public ScyllaFileService(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         /// <inheritdoc />
         public void Copy(string source, string destination)
         {
@@ -25,18 +38,18 @@ namespace magic.io.scylla
         {
             using (var session = CreateSession())
             {
-                var cql = "select content from files where path = :path";
+                var cql = "select content from files where filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "path", source },
+                    { "filename", source },
                 };
-                string sourceFile;
+                string content;
                 using (var rs = await session.ExecuteAsync(new SimpleStatement(args, cql)))
                 {
-                    var row = rs.FirstOrDefault();
-                    sourceFile = row.GetValue<string>("content");
+                    var row = rs.FirstOrDefault() ?? throw new HyperlambdaException("No such file");
+                    content = row.GetValue<string>("content");
                 }
-                await SaveAsync(destination, sourceFile);
+                await SaveAsync(destination, content);
             }
         }
 
@@ -51,10 +64,10 @@ namespace magic.io.scylla
         {
             using (var session = CreateSession())
             {
-                var cql = "delete from files where path = :path";
+                var cql = "delete from files where filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "path", path },
+                    { "filename", path },
                 };
                 await session.ExecuteAsync(new SimpleStatement(args, cql));
             }
@@ -71,10 +84,10 @@ namespace magic.io.scylla
         {
             using (var session = CreateSession())
             {
-                var cql = "select path from files where path = :path";
+                var cql = "select filename from files where filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "path", path },
+                    { "filename", path },
                 };
                 using (var rs = await session.ExecuteAsync(new SimpleStatement(args, cql)))
                 {
@@ -95,7 +108,7 @@ namespace magic.io.scylla
         {
             using (var session = CreateSession())
             {
-                var cql = "select path from files where folder = :folder";
+                var cql = "select filename from files where folder = :folder";
                 var args = new Dictionary<string, object>
                 {
                     { "folder", folder },
@@ -105,9 +118,9 @@ namespace magic.io.scylla
                     var result = new List<string>();
                     foreach (var idx in rs.GetRows())
                     {
-                        var value = idx.GetValue<string>("path");
-                        if (extension == null || value.EndsWith(extension));
-                            result.Add(value);
+                        var idxFile = idx.GetValue<string>("filename");
+                        if (extension == null || idxFile.EndsWith(extension))
+                            result.Add(idxFile);
                     }
                     return result;
                 }
@@ -125,14 +138,14 @@ namespace magic.io.scylla
         {
             using (var session = CreateSession())
             {
-                var cql = "select content from files where path = :path";
+                var cql = "select content from files where filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "path", path },
+                    { "filename", Path.GetFileName(path) },
                 };
                 using (var rs = await session.ExecuteAsync(new SimpleStatement(args, cql)))
                 {
-                    var row = rs.FirstOrDefault() ?? throw new HyperlambdaException($"No such file found, path was '{path}'");
+                    var row = rs.FirstOrDefault() ?? throw new HyperlambdaException("No such file found");
                     return row.GetValue<string>("content");
                 }
             }
@@ -147,19 +160,7 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task<byte[]> LoadBinaryAsync(string path)
         {
-            using (var session = CreateSession())
-            {
-                var cql = "select content from files where path = :path";
-                var args = new Dictionary<string, object>
-                {
-                    { "path", path },
-                };
-                using (var rs = await session.ExecuteAsync(new SimpleStatement(args, cql)))
-                {
-                    var row = rs.FirstOrDefault() ?? throw new HyperlambdaException($"No such file found, path was '{path}'");
-                    return Convert.FromBase64String(row.GetValue<string>("content"));
-                }
-            }
+            return Convert.FromBase64String(await LoadAsync(path));
         }
 
         /// <inheritdoc />
@@ -173,11 +174,11 @@ namespace magic.io.scylla
         {
             using (var session = CreateSession())
             {
-                var cql = "update files set path = :dest where path = :src";
+                var cql = "update files set folder = :dest where filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "src", source },
-                    { "dest", destination },
+                    { "filename", source },
+                    { "dest", Path.GetDirectoryName(destination) },
                 };
                 await session.ExecuteAsync(new SimpleStatement(args, cql));
             }
@@ -200,10 +201,11 @@ namespace magic.io.scylla
         {
             using (var session = CreateSession())
             {
-                var cql = "insert into files (path, content) values (:path, :content)";
+                var cql = "insert into files (filename, folder, content) values (:filename, :folder, :content)";
                 var args = new Dictionary<string, object>
                 {
-                    { "path", path },
+                    { "filename", path },
+                    { "folder", Path.GetDirectoryName(path) },
                     { "content", content }
                 };
                 await session.ExecuteAsync(new SimpleStatement(args, cql));
@@ -213,16 +215,7 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task SaveAsync(string path, byte[] content)
         {
-            using (var session = CreateSession())
-            {
-                var cql = "insert into files (path, content) values (:path, :content)";
-                var args = new Dictionary<string, object>
-                {
-                    { "path", path },
-                    { "content", Convert.ToBase64String(content) }
-                };
-                await session.ExecuteAsync(new SimpleStatement(args, cql));
-            }
+            await SaveAsync(path, Convert.ToBase64String(content));
         }
 
         #region [ -- Private helper methods -- ]
@@ -233,7 +226,7 @@ namespace magic.io.scylla
         ISession CreateSession()
         {
             var cluster = Cluster.Builder()
-                .AddContactPoints("127.0.0.1")
+                .AddContactPoints(_configuration["magic:io:scylla:host"] ?? "127.0.0.1")
                 .Build();
             return cluster.Connect("magic");
         }
