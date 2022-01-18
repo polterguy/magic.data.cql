@@ -1,2 +1,4 @@
-# magic.io.scylla
-ScyllaDB data adapters for files and such in Magic
+
+# ScyllaDB data adapters for Magic
+
+ScyllaDB data adapters for Magic
