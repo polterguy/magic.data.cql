@@ -26,7 +26,7 @@ namespace magic.data.cql.io
         /// </summary>
         /// <param name="configuration">Configuration needed to retrieve connection settings to ScyllaDB.</param>
         /// <param name="rootResolver">Needed to resolve client and cloudlet.</param>
-        public ScyllaFileService(IConfiguration configuration, IRootResolver rootResolver)
+        public CqlFileService(IConfiguration configuration, IRootResolver rootResolver)
         {
             _configuration = configuration;
             _rootResolver = rootResolver;
@@ -47,7 +47,7 @@ namespace magic.data.cql.io
                 // Sanity checking invocation.
                 var folder = _rootResolver.RelativePath(destination);
                 folder = folder.Substring(0, folder.LastIndexOf("/") + 1);
-                if (!await ScyllaFolderService.FolderExists(
+                if (!await CqlFolderService.FolderExists(
                     session,
                     keys.Client,
                     keys.Cloudlet,
@@ -135,7 +135,7 @@ namespace magic.data.cql.io
             using (var session = CreateSession(_configuration))
             {
                 // Sanity checking invocation.
-                if (!await ScyllaFolderService.FolderExists(
+                if (!await CqlFolderService.FolderExists(
                     session,
                     keys.Client,
                     keys.Cloudlet,
@@ -215,7 +215,7 @@ namespace magic.data.cql.io
                 // Sanity checking invocation.
                 var destinationFolder = _rootResolver.RelativePath(destination);
                 destinationFolder = destinationFolder.Substring(0, destinationFolder.LastIndexOf("/") + 1);
-                if (!await ScyllaFolderService.FolderExists(
+                if (!await CqlFolderService.FolderExists(
                     session,
                     keys.Client,
                     keys.Cloudlet,
@@ -264,7 +264,7 @@ namespace magic.data.cql.io
                 // Sanity checking invocation.
                 var destinationFolder = _rootResolver.RelativePath(path);
                 destinationFolder = destinationFolder.Substring(0, destinationFolder.LastIndexOf("/") + 1);
-                if (!await ScyllaFolderService.FolderExists(
+                if (!await CqlFolderService.FolderExists(
                     session,
                     keys.Client,
                     keys.Cloudlet,
@@ -291,12 +291,12 @@ namespace magic.data.cql.io
         /*
          * Creates a ScyllaDB session and returns to caller.
          */
-        internal static ISession CreateSession(IConfiguration configuration)
+        internal static ISession CreateSession(IConfiguration configuration, string db = "magic")
         {
             var cluster = Cluster.Builder()
-                .AddContactPoints(configuration["magic:io:scylla:host"] ?? "127.0.0.1")
+                .AddContactPoints(configuration["magic:cql:host"] ?? "127.0.0.1")
                 .Build();
-            return cluster.Connect("magic");
+            return cluster.Connect(db);
         }
 
         /*

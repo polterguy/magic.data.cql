@@ -25,7 +25,7 @@ namespace magic.data.cql.io
         /// </summary>
         /// <param name="configuration">Configuration needed to retrieve connection settings to ScyllaDB.</param>
         /// <param name="rootResolver">Needed to resolve client and cloudlet.</param>
-        public ScyllaFolderService(IConfiguration configuration, IRootResolver rootResolver)
+        public CqlFolderService(IConfiguration configuration, IRootResolver rootResolver)
         {
             _configuration = configuration;
             _rootResolver = rootResolver;
@@ -52,8 +52,8 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task CreateAsync(string path)
         {
-            var keys = ScyllaFileService.GetCloudletInstance(_rootResolver);
-            using (var session = ScyllaFileService.CreateSession(_configuration))
+            var keys = CqlFileService.GetCloudletInstance(_rootResolver);
+            using (var session = CqlFileService.CreateSession(_configuration))
             {
                 var cql = "insert into folders (client, cloudlet, folder) values (:client, :cloudlet, :folder)";
                 var args = new Dictionary<string, object>
@@ -75,9 +75,9 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task DeleteAsync(string path)
         {
-            var keys = ScyllaFileService.GetCloudletInstance(_rootResolver);
+            var keys = CqlFileService.GetCloudletInstance(_rootResolver);
             var relativePath = _rootResolver.RelativePath(path);
-            using (var session = ScyllaFileService.CreateSession(_configuration))
+            using (var session = CqlFileService.CreateSession(_configuration))
             {
                 // Deleting main folder and all sub-folders.
                 var cql = "select folder from folders where client = :client and cloudlet = :cloudlet";
@@ -138,8 +138,8 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<bool> ExistsAsync(string path)
         {
-            var keys = ScyllaFileService.GetCloudletInstance(_rootResolver);
-            using (var session = ScyllaFileService.CreateSession(_configuration))
+            var keys = CqlFileService.GetCloudletInstance(_rootResolver);
+            using (var session = CqlFileService.CreateSession(_configuration))
             {
                 var cql = "select folder from folders where client = :client and cloudlet = :cloudlet and folder = :folder";
                 var args = new Dictionary<string, object>
@@ -163,9 +163,9 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFoldersAsync(string folder)
         {
-            var keys = ScyllaFileService.GetCloudletInstance(_rootResolver);
+            var keys = CqlFileService.GetCloudletInstance(_rootResolver);
             var relativeFolder = _rootResolver.RelativePath(folder).TrimEnd('/');
-            using (var session = ScyllaFileService.CreateSession(_configuration))
+            using (var session = CqlFileService.CreateSession(_configuration))
             {
                 var cql = "select folder from folders where client = :client and cloudlet = :cloudlet";
                 var args = new Dictionary<string, object>
