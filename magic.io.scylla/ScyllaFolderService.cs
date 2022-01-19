@@ -3,6 +3,7 @@
  */
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
@@ -14,87 +15,155 @@ namespace magic.io.scylla
     public class ScyllaFolderService : IFolderService
     {
         readonly IConfiguration _configuration;
+        readonly IRootResolver _rootResolver;
 
         /// <summary>
         /// Creates an instance of your type.
         /// </summary>
         /// <param name="configuration">Configuration needed to retrieve connection settings to ScyllaDB.</param>
-        public ScyllaFolderService(IConfiguration configuration)
+        /// <param name="rootResolver">Needed to resolve client and cloudlet.</param>
+        public ScyllaFolderService(IConfiguration configuration, IRootResolver rootResolver)
         {
             _configuration = configuration;
+            _rootResolver = rootResolver;
         }
 
+        /// <inheritdoc />
         public void Copy(string source, string destination)
         {
-            throw new NotImplementedException();
+            CopyAsync(source, destination).GetAwaiter().GetResult();
         }
 
+        /// <inheritdoc />
         public Task CopyAsync(string source, string destination)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc />
         public void Create(string path)
         {
-            throw new NotImplementedException();
+            CreateAsync(path).GetAwaiter().GetResult();
         }
 
-        public Task CreateAsync(string path)
+        /// <inheritdoc />
+        public async Task CreateAsync(string path)
         {
-            throw new NotImplementedException();
+            var keys = ScyllaFileService.GetCloudletInstance(_rootResolver);
+            using (var session = ScyllaFileService.CreateSession(_configuration))
+            {
+                var cql = "insert into folders (client, cloudlet, folder) values (:client, :cloudlet, :folder)";
+                var args = new Dictionary<string, object>
+                {
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                    { "folder", _rootResolver.RelativePath(path) },
+                };
+                await session.ExecuteAsync(new SimpleStatement(args, cql));
+            }
         }
 
+        /// <inheritdoc />
         public void Delete(string path)
         {
-            throw new NotImplementedException();
+            DeleteAsync(path).GetAwaiter().GetResult();
         }
 
+        /// <inheritdoc />
         public Task DeleteAsync(string path)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc />
         public bool Exists(string path)
         {
-            throw new NotImplementedException();
+            return ExistsAsync(path).GetAwaiter().GetResult();
         }
 
-        public Task<bool> ExistsAsync(string path)
+        /// <inheritdoc />
+        public async Task<bool> ExistsAsync(string path)
         {
-            throw new NotImplementedException();
+            var keys = ScyllaFileService.GetCloudletInstance(_rootResolver);
+            using (var session = ScyllaFileService.CreateSession(_configuration))
+            {
+                var cql = "select folder from folders where client = :client and cloudlet = :cloudlet and folder = :folder";
+                var args = new Dictionary<string, object>
+                {
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                    { "folder", _rootResolver.RelativePath(path) },
+                };
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                var row = rs.FirstOrDefault();
+                return row == null ? false : true;
+            }
         }
 
+        /// <inheritdoc />
         public List<string> ListFolders(string folder)
         {
-            throw new NotImplementedException();
+            return ListFoldersAsync(folder).GetAwaiter().GetResult();
         }
 
-        public Task<List<string>> ListFoldersAsync(string folder)
+        /// <inheritdoc />
+        public async Task<List<string>> ListFoldersAsync(string folder)
         {
-            throw new NotImplementedException();
+            var keys = ScyllaFileService.GetCloudletInstance(_rootResolver);
+            var relativeFolder = _rootResolver.RelativePath(folder).TrimEnd('/');
+            using (var session = ScyllaFileService.CreateSession(_configuration))
+            {
+                var cql = "select folder from folders where client = :client and cloudlet = :cloudlet";
+                var args = new Dictionary<string, object>
+                {
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                };
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                var result = new List<string>();
+                foreach (var idx in rs.GetRows())
+                {
+                    var idxFolder = idx.GetValue<string>("folder").TrimEnd('/');
+                    if (idxFolder.StartsWith(relativeFolder) && idxFolder.LastIndexOf("/") == relativeFolder.LastIndexOf("/"))
+                        result.Add(idxFolder + "/");
+                }
+                return result;
+            }
         }
 
+        /// <inheritdoc />
         public void Move(string source, string destination)
         {
-            throw new NotImplementedException();
+            MoveAsync(source, destination).GetAwaiter().GetResult();
         }
 
+        /// <inheritdoc />
         public Task MoveAsync(string source, string destination)
         {
             throw new NotImplementedException();
         }
 
-        #region [ -- Private helper methods -- ]
+        #region [ -- Internal helper methods -- ]
 
         /*
-         * Creates a ScyllaDB session and returns to caller.
+         * Returns true if folder exists.
          */
-        ISession CreateSession()
+        internal static async Task<bool> FolderExists(
+            ISession session,
+            string client,
+            string cloudlet,
+            string relativePath)
+        {
+            var cql = "select folder from folders where client = :client and cloudlet = :cloudlet and folder = :folder";
+            var args = new Dictionary<string, object>
             {
-            var cluster = Cluster.Builder()
-                .AddContactPoints(_configuration["magic:io:scylla:host"] ?? "127.0.0.1")
-                .Build();
-            return cluster.Connect("magic");
+                { "client", client },
+                { "cloudlet", cloudlet },
+                { "folder", relativePath },
+            };
+            var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+            var row = rs.FirstOrDefault();
+            return row == null ? false : true;
         }
 
         #endregion

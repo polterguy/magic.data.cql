@@ -38,9 +38,19 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task CopyAsync(string source, string destination)
         {
-            var keys = GetCloudletInstance();
-            using (var session = CreateSession())
+            var keys = GetCloudletInstance(_rootResolver);
+            using (var session = CreateSession(_configuration))
             {
+                // Sanity checking invocation.
+                var folder = _rootResolver.RelativePath(destination);
+                folder = folder.Substring(0, folder.LastIndexOf("/") + 1);
+                if (!await ScyllaFolderService.FolderExists(
+                    session,
+                    keys.Client,
+                    keys.Cloudlet,
+                    folder))
+                    throw new HyperlambdaException("Destination folder doesn't exist");
+
                 var cql = "select content from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
                 {
@@ -69,8 +79,8 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task DeleteAsync(string path)
         {
-            var keys = GetCloudletInstance();
-            using (var session = CreateSession())
+            var keys = GetCloudletInstance(_rootResolver);
+            using (var session = CreateSession(_configuration))
             {
                 var cql = "delete from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
@@ -79,7 +89,7 @@ namespace magic.io.scylla
                     { "cloudlet", keys.Cloudlet },
                     { "filename", _rootResolver.RelativePath(path) },
                 };
-                await session.ExecuteAsync(new SimpleStatement(args, cql));
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
             }
         }
 
@@ -92,8 +102,8 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task<bool> ExistsAsync(string path)
         {
-            var keys = GetCloudletInstance();
-            using (var session = CreateSession())
+            var keys = GetCloudletInstance(_rootResolver);
+            using (var session = CreateSession(_configuration))
             {
                 var cql = "select filename from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
@@ -117,10 +127,18 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task<List<string>> ListFilesAsync(string folder, string extension = null)
         {
-            var keys = GetCloudletInstance();
+            var keys = GetCloudletInstance(_rootResolver);
             var relativeFolder = _rootResolver.RelativePath(folder);
-            using (var session = CreateSession())
+            using (var session = CreateSession(_configuration))
             {
+                // Sanity checking invocation.
+                if (!await ScyllaFolderService.FolderExists(
+                    session,
+                    keys.Client,
+                    keys.Cloudlet,
+                    relativeFolder.Substring(0, relativeFolder.LastIndexOf("/") + 1)))
+                    throw new HyperlambdaException("Folder doesn't exist");
+
                 var cql = "select filename from files where client = :client and cloudlet = :cloudlet";
                 var args = new Dictionary<string, object>
                 {
@@ -151,8 +169,8 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task<string> LoadAsync(string path)
         {
-            var keys = GetCloudletInstance();
-            using (var session = CreateSession())
+            var keys = GetCloudletInstance(_rootResolver);
+            using (var session = CreateSession(_configuration))
             {
                 var cql = "select content from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
@@ -188,9 +206,19 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task MoveAsync(string source, string destination)
         {
-            var keys = GetCloudletInstance();
-            using (var session = CreateSession())
+            var keys = GetCloudletInstance(_rootResolver);
+            using (var session = CreateSession(_configuration))
             {
+                // Sanity checking invocation.
+                var destinationFolder = _rootResolver.RelativePath(destination);
+                destinationFolder = destinationFolder.Substring(0, destinationFolder.LastIndexOf("/") + 1);
+                if (!await ScyllaFolderService.FolderExists(
+                    session,
+                    keys.Client,
+                    keys.Cloudlet,
+                    destinationFolder.Substring(0, destinationFolder.LastIndexOf("/") + 1)))
+                    throw new HyperlambdaException("Destination folder doesn't exist");
+
                 var cql = "select content from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
                 {
@@ -227,9 +255,19 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task SaveAsync(string path, string content)
         {
-            var keys = GetCloudletInstance();
-            using (var session = CreateSession())
+            var keys = GetCloudletInstance(_rootResolver);
+            using (var session = CreateSession(_configuration))
             {
+                // Sanity checking invocation.
+                var destinationFolder = _rootResolver.RelativePath(path);
+                destinationFolder = destinationFolder.Substring(0, destinationFolder.LastIndexOf("/") + 1);
+                if (!await ScyllaFolderService.FolderExists(
+                    session,
+                    keys.Client,
+                    keys.Cloudlet,
+                    destinationFolder.Substring(0, destinationFolder.LastIndexOf("/") + 1)))
+                    throw new HyperlambdaException("Destination folder doesn't exist");
+
                 await SaveAsync(
                     session,
                     keys.Client,
@@ -245,15 +283,15 @@ namespace magic.io.scylla
             await SaveAsync(path, Convert.ToBase64String(content));
         }
 
-        #region [ -- Private helper methods -- ]
+        #region [ -- Internal helper methods -- ]
 
         /*
          * Creates a ScyllaDB session and returns to caller.
          */
-        ISession CreateSession()
+        internal static ISession CreateSession(IConfiguration configuration)
         {
             var cluster = Cluster.Builder()
-                .AddContactPoints(_configuration["magic:io:scylla:host"] ?? "127.0.0.1")
+                .AddContactPoints(configuration["magic:io:scylla:host"] ?? "127.0.0.1")
                 .Build();
             return cluster.Connect("magic");
         }
@@ -261,14 +299,17 @@ namespace magic.io.scylla
         /*
          * Returns cloudlet and client ID using the root resolver.
          */
-        (string Client, string Cloudlet) GetCloudletInstance()
+        internal static (string Client, string Cloudlet) GetCloudletInstance(IRootResolver rootResolver)
         {
-            var rootFolder = _rootResolver.RootFolder;
-            var items = rootFolder.Split('/');
+            var items = rootResolver.RootFolder.Split('/');
             var client = items.First();
             var cloudlet = string.Join("/", items.Skip(1));
             return (client, cloudlet);
         }
+
+        #endregion
+
+        #region [ -- Private helper methods -- ]
 
         /*
          * Common helper method to save file on specified session given specified client and cloudlet ID.

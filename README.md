@@ -11,4 +11,5 @@ To create the database use the following CQL.
 create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
 use magic;
 create table files(client text, cloudlet text, filename text, content text, primary key(client, cloudlet, filename));
+create table folders(client text, cloudlet text, folder text, primary key(client, cloudlet, folder));
 ```
