@@ -70,9 +70,60 @@ namespace magic.io.scylla
         }
 
         /// <inheritdoc />
-        public Task DeleteAsync(string path)
+        public async Task DeleteAsync(string path)
         {
-            throw new NotImplementedException();
+            var keys = ScyllaFileService.GetCloudletInstance(_rootResolver);
+            var relativePath = _rootResolver.RelativePath(path);
+            using (var session = ScyllaFileService.CreateSession(_configuration))
+            {
+                // Deleting main folder and all sub-folders.
+                var cql = "select folder from folders where client = :client and cloudlet = :cloudlet";
+                var args = new Dictionary<string, object>
+                {
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                };
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                foreach (var idx in rs)
+                {
+                    var idxFolder = idx.GetValue<string>("folder");
+                    if (idxFolder.StartsWith(relativePath))
+                    {
+                        cql = "delete from folders where client = :client and cloudlet = :cloudlet and folder = :folder";
+                        args = new Dictionary<string, object>
+                        {
+                            { "client", keys.Client },
+                            { "cloudlet", keys.Cloudlet },
+                            { "folder", idxFolder },
+                        };
+                        await session.ExecuteAsync(new SimpleStatement(args, cql));
+                    }
+                }
+
+                // Deleting all files within folder.
+                cql = "select filename from files where client = :client and cloudlet = :cloudlet";
+                args = new Dictionary<string, object>
+                {
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                };
+                rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                foreach (var idx in rs)
+                {
+                    var idxFile = idx.GetValue<string>("filename");
+                    if (idxFile.StartsWith(relativePath))
+                    {
+                        cql = "delete from files where client = :client and cloudlet = :cloudlet and filename = :filename";
+                        args = new Dictionary<string, object>
+                        {
+                            { "client", keys.Client },
+                            { "cloudlet", keys.Cloudlet },
+                            { "filename", idxFile },
+                        };
+                        await session.ExecuteAsync(new SimpleStatement(args, cql));
+                    }
+                }
+            }
         }
 
         /// <inheritdoc />
