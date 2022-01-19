@@ -64,10 +64,10 @@ namespace magic.data.cql.io
                 var relPath = Utilities.BreakDownPath(_rootResolver.RelativePath(path));
                 await Utilities.ExecuteAsync(
                     session,
-                    "delete from files where cloudlet = :cloudlet and folder = :folder and filename = :filename",
-                    ("cloudlet", _rootResolver.DynamicFiles),
-                    ("folder", relPath.Folder),
-                    ("filename", relPath.File));
+                    "delete from files where cloudlet = ? and folder = ? and filename = ?",
+                    _rootResolver.DynamicFiles,
+                    relPath.Folder,
+                    relPath.File);
             }
         }
 
@@ -85,10 +85,10 @@ namespace magic.data.cql.io
                 var relPath = Utilities.BreakDownPath(_rootResolver.RelativePath(path));
                 var row = await Utilities.SingleAsync(
                     session,
-                    "select filename from files where cloudlet = :cloudlet and folder = :folder and filename = :filename",
-                    ("cloudlet", _rootResolver.DynamicFiles),
-                    ("folder", relPath.Folder),
-                    ("filename", relPath.File));
+                    "select filename from files where cloudlet = ? and folder = ? and filename = ?",
+                    _rootResolver.DynamicFiles,
+                    relPath.Folder,
+                    relPath.File);
                 return row == null ? false : true;
             }
         }
@@ -111,9 +111,9 @@ namespace magic.data.cql.io
                 var result = new List<string>();
                 foreach (var idx in await Utilities.RecordsAsync(
                     session,
-                    "select filename from files where cloudlet = :cloudlet and folder = :folder",
-                    ("cloudlet", _rootResolver.DynamicFiles),
-                    ("folder", relPath.Folder)))
+                    "select filename from files where cloudlet = ? and folder = ?",
+                    _rootResolver.DynamicFiles,
+                    relPath.Folder))
                 {
                     var idxFile = idx.GetValue<string>("filename");
                     if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
@@ -170,10 +170,10 @@ namespace magic.data.cql.io
                 var relSrc = Utilities.BreakDownPath(_rootResolver.RelativePath(source));
                 await Utilities.ExecuteAsync(
                     session,
-                    "delete from files where cloudlet = :cloudlet and folder = :folder and filename = :filename",
-                    ("cloudlet", _rootResolver.DynamicFiles),
-                    ("folder", relSrc.Folder),
-                    ("filename", relSrc.File));
+                    "delete from files where cloudlet = ? and folder = ? and filename = ?",
+                    _rootResolver.DynamicFiles,
+                    relSrc.Folder,
+                    relSrc.File);
             }
         }
 
@@ -221,10 +221,10 @@ namespace magic.data.cql.io
             var rel = Utilities.BreakDownPath(rootResolver.RelativePath(path));
             var rs = await Utilities.SingleAsync(
                 session,
-                "select content from files where cloudlet = :cloudlet and folder = :folder and filename = :filename",
-                ("cloudlet", rootResolver.DynamicFiles),
-                ("folder", rel.Folder),
-                ("filename", rel.File));
+                "select content from files where cloudlet = ? and folder = ? and filename = ?",
+                rootResolver.DynamicFiles,
+                rel.Folder,
+                rel.File);
             return rs?.GetValue<string>("content") ?? throw new HyperlambdaException("No such file");
         }
 
@@ -244,11 +244,11 @@ namespace magic.data.cql.io
             var relPath = Utilities.BreakDownPath(rootResolver.RelativePath(path));
             await Utilities.ExecuteAsync(
                 session,
-                "insert into files (cloudlet, folder, filename, content) values (:cloudlet, :folder, :filename, :content)",
-                ("cloudlet", rootResolver.DynamicFiles),
-                ("folder", relPath.Folder),
-                ("filename", relPath.File),
-                ("content", content));
+                "insert into files (cloudlet, folder, filename, content) values (?, ?, ?, ?)",
+                rootResolver.DynamicFiles,
+                relPath.Folder,
+                relPath.File,
+                content);
         }
 
         #endregion

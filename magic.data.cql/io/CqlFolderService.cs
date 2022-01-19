@@ -3,7 +3,6 @@
  */
 
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
@@ -57,9 +56,9 @@ namespace magic.data.cql.io
             {
                 await Utilities.ExecuteAsync(
                     session,
-                    "insert into files (cloudlet, folder, filename) values (:cloudlet, :folder, '')",
-                    ("cloudlet", _rootResolver.DynamicFiles),
-                    ("folder", _rootResolver.RelativePath(path)));
+                    "insert into files (cloudlet, folder, filename) values (?, ?, '')",
+                    _rootResolver.DynamicFiles,
+                    _rootResolver.RelativePath(path));
             }
         }
 
@@ -77,9 +76,9 @@ namespace magic.data.cql.io
             {
                 var rs = await Utilities.RecordsAsync(
                     session,
-                    "delete from files where cloudlet = :cloudlet and folder like :folder",
-                    ("cloudlet", _rootResolver.DynamicFiles),
-                    ("folder", relPath + '%'));
+                    "delete from files where cloudlet = ? and folder like ?",
+                    _rootResolver.DynamicFiles,
+                    relPath + '%');
             }
         }
 
@@ -96,9 +95,9 @@ namespace magic.data.cql.io
             {
                 return await Utilities.SingleAsync(
                     session,
-                    "select folder from files where cloudlet = :cloudlet and folder = :folder and filename = ''",
-                    ("cloudlet", _rootResolver.DynamicFiles),
-                    ("folder", _rootResolver.RelativePath(path))) == null ? false : true;
+                    "select folder from files where cloudlet = ? and folder = ? and filename = ''",
+                    _rootResolver.DynamicFiles,
+                    _rootResolver.RelativePath(path)) == null ? false : true;
             }
         }
 
@@ -116,9 +115,9 @@ namespace magic.data.cql.io
             {
                 var rs = await Utilities.RecordsAsync(
                     session,
-                    "select folder from files where cloudlet = :cloudlet and folder like :folder and filename = ''",
-                    ("cloudlet", _rootResolver.DynamicFiles),
-                    ("folder", relativeFolder + "%"));
+                    "select folder from files where cloudlet = ? and folder like ? and filename = ''",
+                    _rootResolver.DynamicFiles,
+                    relativeFolder + "%");
                 var result = new List<string>();
                 foreach (var idx in rs.GetRows())
                 {
@@ -154,9 +153,9 @@ namespace magic.data.cql.io
         {
             return await Utilities.SingleAsync(
                 session,
-                "select folder from files where cloudlet = :cloudlet and folder = :folder and filename = ''",
-                ("cloudlet", rootResolver.DynamicFiles),
-                ("folder", path)) == null ? false : true;
+                "select folder from files where cloudlet = ? and folder = ? and filename = ''",
+                rootResolver.DynamicFiles,
+                path) == null ? false : true;
         }
 
         #endregion
