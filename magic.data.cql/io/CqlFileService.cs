@@ -11,12 +11,12 @@ using Cassandra;
 using magic.node.contracts;
 using magic.node.extensions;
 
-namespace magic.io.scylla
+namespace magic.data.cql.io
 {
     /// <summary>
     /// File service for Magic storing files in ScyllaDB.
     /// </summary>
-    public class ScyllaFileService : IFileService
+    public class CqlFileService : IFileService
     {
         readonly IConfiguration _configuration;
         readonly IRootResolver _rootResolver;

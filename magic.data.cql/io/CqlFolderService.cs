@@ -10,12 +10,12 @@ using Microsoft.Extensions.Configuration;
 using Cassandra;
 using magic.node.contracts;
 
-namespace magic.io.scylla
+namespace magic.data.cql.io
 {
     /// <summary>
     /// Folder service for Magic storing folders in ScyllaDB.
     /// </summary>
-    public class ScyllaFolderService : IFolderService
+    public class CqlFolderService : IFolderService
     {
         readonly IConfiguration _configuration;
         readonly IRootResolver _rootResolver;
