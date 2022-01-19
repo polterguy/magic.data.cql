@@ -194,14 +194,15 @@ namespace magic.data.cql.io
          */
         internal static async Task<bool> FolderExists(
             ISession session,
-            string cloudlet,
-            string relativePath)
+            IRootResolver rootResolver,
+            string path)
         {
+            var relPath = CqlFileService.BreakDownPath(path);
             var cql = "select folder from files where cloudlet = :cloudlet and folder = :folder and filename = ''";
             var args = new Dictionary<string, object>
             {
-                { "cloudlet", cloudlet },
-                { "folder", relativePath },
+                { "cloudlet", rootResolver.DynamicFiles },
+                { "folder", relPath.Folder },
             };
             var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
             var row = rs.FirstOrDefault();
