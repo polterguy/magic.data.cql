@@ -36,7 +36,7 @@ namespace magic.data.cql.slots
         public async Task SignalAsync(ISignaler signaler, Node input)
         {
             var cql = input.GetEx<string>();
-            var args = input.Children.ToDictionary(x => x.Name, x => x.Value);
+            var args = input.Children.ToDictionary(x => x.Name, x => x.GetEx<object>());
             input.Clear();
             input.Value = null;
             var rowSet = await signaler.Peek<ISession>("cql.connect").ExecuteAsync(new SimpleStatement(args, cql));

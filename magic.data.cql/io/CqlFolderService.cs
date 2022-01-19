@@ -52,14 +52,12 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task CreateAsync(string path)
         {
-            var keys = CqlFileService.GetCloudletInstance(_rootResolver);
             using (var session = CqlFileService.CreateSession(_configuration))
             {
-                var cql = "insert into folders (client, cloudlet, folder) values (:client, :cloudlet, :folder)";
+                var cql = "insert into files (cloudlet, folder, filename) values (:cloudlet, :folder, '')";
                 var args = new Dictionary<string, object>
                 {
-                    { "client", keys.Client },
-                    { "cloudlet", keys.Cloudlet },
+                    { "cloudlet", _rootResolver.DynamicFiles },
                     { "folder", _rootResolver.RelativePath(path) },
                 };
                 await session.ExecuteAsync(new SimpleStatement(args, cql));
@@ -75,16 +73,14 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task DeleteAsync(string path)
         {
-            var keys = CqlFileService.GetCloudletInstance(_rootResolver);
             var relativePath = _rootResolver.RelativePath(path);
             using (var session = CqlFileService.CreateSession(_configuration))
             {
                 // Deleting main folder and all sub-folders.
-                var cql = "select folder from folders where client = :client and cloudlet = :cloudlet";
+                var cql = "select folder from files where cloudlet = :cloudlet and filename = ''";
                 var args = new Dictionary<string, object>
                 {
-                    { "client", keys.Client },
-                    { "cloudlet", keys.Cloudlet },
+                    { "cloudlet", _rootResolver.DynamicFiles },
                 };
                 var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
                 foreach (var idx in rs)
@@ -92,11 +88,10 @@ namespace magic.data.cql.io
                     var idxFolder = idx.GetValue<string>("folder");
                     if (idxFolder.StartsWith(relativePath))
                     {
-                        cql = "delete from folders where client = :client and cloudlet = :cloudlet and folder = :folder";
+                        cql = "delete from files where cloudlet = :cloudlet and folder = :folder and filename = ''";
                         args = new Dictionary<string, object>
                         {
-                            { "client", keys.Client },
-                            { "cloudlet", keys.Cloudlet },
+                            { "cloudlet", _rootResolver.DynamicFiles },
                             { "folder", idxFolder },
                         };
                         await session.ExecuteAsync(new SimpleStatement(args, cql));
@@ -104,11 +99,10 @@ namespace magic.data.cql.io
                 }
 
                 // Deleting all files within folder.
-                cql = "select filename from files where client = :client and cloudlet = :cloudlet";
+                cql = "select filename from files where cloudlet = :cloudlet";
                 args = new Dictionary<string, object>
                 {
-                    { "client", keys.Client },
-                    { "cloudlet", keys.Cloudlet },
+                    { "cloudlet", _rootResolver.DynamicFiles },
                 };
                 rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
                 foreach (var idx in rs)
@@ -116,11 +110,10 @@ namespace magic.data.cql.io
                     var idxFile = idx.GetValue<string>("filename");
                     if (idxFile.StartsWith(relativePath))
                     {
-                        cql = "delete from files where client = :client and cloudlet = :cloudlet and filename = :filename";
+                        cql = "delete from files where cloudlet = :cloudlet and filename = :filename";
                         args = new Dictionary<string, object>
                         {
-                            { "client", keys.Client },
-                            { "cloudlet", keys.Cloudlet },
+                            { "cloudlet", _rootResolver.DynamicFiles },
                             { "filename", idxFile },
                         };
                         await session.ExecuteAsync(new SimpleStatement(args, cql));
@@ -138,14 +131,12 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<bool> ExistsAsync(string path)
         {
-            var keys = CqlFileService.GetCloudletInstance(_rootResolver);
             using (var session = CqlFileService.CreateSession(_configuration))
             {
-                var cql = "select folder from folders where client = :client and cloudlet = :cloudlet and folder = :folder";
+                var cql = "select folder from files where cloudlet = :cloudlet and folder = :folder and filename = ''";
                 var args = new Dictionary<string, object>
                 {
-                    { "client", keys.Client },
-                    { "cloudlet", keys.Cloudlet },
+                    { "cloudlet", _rootResolver.DynamicFiles },
                     { "folder", _rootResolver.RelativePath(path) },
                 };
                 var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
@@ -163,15 +154,14 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFoldersAsync(string folder)
         {
-            var keys = CqlFileService.GetCloudletInstance(_rootResolver);
-            var relativeFolder = _rootResolver.RelativePath(folder).TrimEnd('/');
+            var relativeFolder = _rootResolver.RelativePath(folder);
             using (var session = CqlFileService.CreateSession(_configuration))
             {
-                var cql = "select folder from folders where client = :client and cloudlet = :cloudlet";
+                var cql = "select folder from files where cloudlet = :cloudlet and folder like :folder and filename = ''";
                 var args = new Dictionary<string, object>
                 {
-                    { "client", keys.Client },
-                    { "cloudlet", keys.Cloudlet },
+                    { "cloudlet", _rootResolver.DynamicFiles },
+                    { "folder", _rootResolver.RelativePath(folder) + "%" }
                 };
                 var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
                 var result = new List<string>();
@@ -179,7 +169,7 @@ namespace magic.data.cql.io
                 {
                     var idxFolder = idx.GetValue<string>("folder").TrimEnd('/');
                     if (idxFolder.StartsWith(relativeFolder) && idxFolder.LastIndexOf("/") == relativeFolder.LastIndexOf("/"))
-                        result.Add(idxFolder + "/");
+                        result.Add(_rootResolver.DynamicFiles.TrimEnd('/') + idxFolder + "/");
                 }
                 return result;
             }
@@ -204,14 +194,12 @@ namespace magic.data.cql.io
          */
         internal static async Task<bool> FolderExists(
             ISession session,
-            string client,
             string cloudlet,
             string relativePath)
         {
-            var cql = "select folder from folders where client = :client and cloudlet = :cloudlet and folder = :folder";
+            var cql = "select folder from files where cloudlet = :cloudlet and folder = :folder and filename = ''";
             var args = new Dictionary<string, object>
             {
-                { "client", client },
                 { "cloudlet", cloudlet },
                 { "folder", relativePath },
             };

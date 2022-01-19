@@ -43,6 +43,5 @@ To create the database use the following CQL.
 ```sql
 create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
 use magic;
-create table files(client text, cloudlet text, filename text, content text, primary key(client, cloudlet, filename));
-create table folders(client text, cloudlet text, folder text, primary key(client, cloudlet, folder));
+create table files(cloudlet text, folder text, filename text, content text, primary key(cloudlet, folder, filename));
 ```
