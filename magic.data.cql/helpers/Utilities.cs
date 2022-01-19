@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Cassandra;
+using magic.node.contracts;
 
 namespace magic.data.cql.helpers
 {
@@ -54,13 +55,14 @@ namespace magic.data.cql.helpers
         /*
          * Breaks down the specified path into its folder value and its file value.
          */
-        internal static (string Folder, string File) BreakDownFileName(string path)
+        internal static (string Folder, string File) BreakDownFileName(IRootResolver rootResolver, string path)
         {
+            path = path.Substring(rootResolver.RootFolder.Length - 1);
             var folder = path.Substring(0, path.LastIndexOf('/') + 1).Trim('/');
             if (folder.Length == 0)
                 folder = "/";
             else
-                folder = "/" + folder.Trim('/') + "/";
+                folder = "/" + folder + "/";
             return (folder, path.Substring(path.LastIndexOf('/') + 1));
         }
 

@@ -57,8 +57,8 @@ namespace magic.data.cql.io
                 await Utilities.ExecuteAsync(
                     session,
                     "insert into files (cloudlet, folder, filename) values (?, ?, '')",
-                    _rootResolver.DynamicFiles,
-                    _rootResolver.RelativePath(path).TrimEnd('/') + "/");
+                    _rootResolver.RootFolder,
+                    path.Substring(_rootResolver.RootFolder.Length - 1).TrimEnd('/') + "/");
             }
         }
 
@@ -71,20 +71,20 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task DeleteAsync(string path)
         {
-            var relPath = _rootResolver.RelativePath(path);
+            var relPath = path.Substring(_rootResolver.RootFolder.Length - 1);
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var rs = await Utilities.RecordsAsync(
                     session,
                     "select folder from files where cloudlet = ? and folder like ?",
-                    _rootResolver.DynamicFiles,
+                    _rootResolver.RootFolder,
                     relPath + '%');
                 foreach (var idx in rs)
                 {
                     await Utilities.ExecuteAsync(
                         session,
                         "delete from files where cloudlet = ? and folder = ?",
-                        _rootResolver.DynamicFiles,
+                        _rootResolver.RootFolder,
                         relPath);
                 }
             }
@@ -104,8 +104,8 @@ namespace magic.data.cql.io
                 return await Utilities.SingleAsync(
                     session,
                     "select folder from files where cloudlet = ? and folder = ? and filename = ''",
-                    _rootResolver.DynamicFiles,
-                    _rootResolver.RelativePath(path)) == null ? false : true;
+                    _rootResolver.RootFolder,
+                    path.Substring(_rootResolver.RootFolder.Length - 1)) == null ? false : true;
             }
         }
 
@@ -118,13 +118,13 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFoldersAsync(string folder)
         {
-            var relativeFolder = _rootResolver.RelativePath(folder);
+            var relativeFolder = folder.Substring(_rootResolver.RootFolder.Length - 1);
             using (var session = Utilities.CreateSession(_configuration))
             {
                 using (var rs = await Utilities.RecordsAsync(
                     session,
                     "select folder from files where cloudlet = ? and folder like ? and filename = ''",
-                    _rootResolver.DynamicFiles,
+                    _rootResolver.RootFolder,
                     relativeFolder + "%"))
                 {
                     var result = new List<string>();
@@ -132,7 +132,7 @@ namespace magic.data.cql.io
                     {
                         var idxFolder = idx.GetValue<string>("folder").TrimEnd('/');
                         if (idxFolder.StartsWith(relativeFolder) && idxFolder.LastIndexOf("/") == relativeFolder.LastIndexOf("/"))
-                            result.Add(_rootResolver.DynamicFiles.TrimEnd('/') + idxFolder + "/");
+                            result.Add(_rootResolver.RootFolder.TrimEnd('/') + idxFolder + "/");
                     }
                     result.Sort();
                     return result;
@@ -165,7 +165,7 @@ namespace magic.data.cql.io
             return await Utilities.SingleAsync(
                 session,
                 "select folder from files where cloudlet = ? and folder = ? and filename = ''",
-                rootResolver.DynamicFiles,
+                rootResolver.RootFolder,
                 path) == null ? false : true;
         }
 
