@@ -54,9 +54,14 @@ namespace magic.data.cql.helpers
         /*
          * Breaks down the specified path into its folder value and its file value.
          */
-        internal static (string Folder, string File) BreakDownPath(string path)
+        internal static (string Folder, string File) BreakDownFileName(string path)
         {
-            return (path.Substring(0, path.LastIndexOf('/') + 1), path.Substring(path.LastIndexOf('/') + 1));
+            var folder = path.Substring(0, path.LastIndexOf('/') + 1).Trim('/');
+            if (folder.Length == 0)
+                folder = "/";
+            else
+                folder = "/" + folder.Trim('/') + "/";
+            return (folder, path.Substring(path.LastIndexOf('/') + 1));
         }
 
         /*
