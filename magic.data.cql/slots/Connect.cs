@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using magic.node;
 using magic.data.cql.io;
 using magic.node.extensions;
+using magic.data.cql.helpers;
 using magic.signals.contracts;
 
 namespace magic.data.cql.slots
@@ -36,7 +37,7 @@ namespace magic.data.cql.slots
         /// <param name="input">Arguments to your slot.</param>
         public void Signal(ISignaler signaler, Node input)
         {
-            using (var session = CqlFileService.CreateSession(_configuration, input.GetEx<string>()))
+            using (var session = Utilities.CreateSession(_configuration, input.GetEx<string>()))
             {
                 signaler.Scope(
                     "cql.connect",
@@ -54,7 +55,7 @@ namespace magic.data.cql.slots
         /// <returns>An awaitable task.</returns>
         public async Task SignalAsync(ISignaler signaler, Node input)
         {
-            using (var session = CqlFileService.CreateSession(_configuration, input.GetEx<string>()))
+            using (var session = Utilities.CreateSession(_configuration, input.GetEx<string>()))
             {
                 await signaler.ScopeAsync(
                     "cql.connect",

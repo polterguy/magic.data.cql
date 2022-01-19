@@ -41,7 +41,7 @@ to your _"appsettings.json"_ file.
 To create the database use the following CQL.
 
 ```sql
-create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
+create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 1 };
 use magic;
 create table files(cloudlet text, folder text, filename text, content text, primary key(cloudlet, folder, filename));
 ```
