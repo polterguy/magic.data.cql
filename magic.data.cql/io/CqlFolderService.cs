@@ -58,7 +58,7 @@ namespace magic.data.cql.io
                     session,
                     "insert into files (cloudlet, folder, filename) values (?, ?, '')",
                     _rootResolver.DynamicFiles,
-                    _rootResolver.RelativePath(path));
+                    _rootResolver.RelativePath(path).TrimEnd('/') + "/");
             }
         }
 
@@ -74,11 +74,19 @@ namespace magic.data.cql.io
             var relPath = _rootResolver.RelativePath(path);
             using (var session = Utilities.CreateSession(_configuration))
             {
-                await Utilities.ExecuteAsync(
+                var rs = await Utilities.RecordsAsync(
                     session,
-                    "delete from files where cloudlet = ? and folder like ?",
+                    "select folder from files where cloudlet = ? and folder like ?",
                     _rootResolver.DynamicFiles,
                     relPath + '%');
+                foreach (var idx in rs)
+                {
+                    await Utilities.ExecuteAsync(
+                        session,
+                        "delete from files where cloudlet = ? and folder = ?",
+                        _rootResolver.DynamicFiles,
+                        relPath);
+                }
             }
         }
 
@@ -126,6 +134,7 @@ namespace magic.data.cql.io
                         if (idxFolder.StartsWith(relativeFolder) && idxFolder.LastIndexOf("/") == relativeFolder.LastIndexOf("/"))
                             result.Add(_rootResolver.DynamicFiles.TrimEnd('/') + idxFolder + "/");
                     }
+                    result.Sort();
                     return result;
                 }
             }
