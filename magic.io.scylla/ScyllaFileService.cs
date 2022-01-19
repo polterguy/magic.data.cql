@@ -3,7 +3,6 @@
  */
 
 using System;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -17,14 +16,17 @@ namespace magic.io.scylla
     public class ScyllaFileService : IFileService
     {
         readonly IConfiguration _configuration;
+        readonly IRootResolver _rootResolver;
 
         /// <summary>
         /// Creates an instance of your type.
         /// </summary>
         /// <param name="configuration">Configuration needed to retrieve connection settings to ScyllaDB.</param>
-        public ScyllaFileService(IConfiguration configuration)
+        /// <param name="rootResolver">Needed to resolve client and cloudlet.</param>
+        public ScyllaFileService(IConfiguration configuration, IRootResolver rootResolver)
         {
             _configuration = configuration;
+            _rootResolver = rootResolver;
         }
 
         /// <inheritdoc />
@@ -36,20 +38,25 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task CopyAsync(string source, string destination)
         {
+            var keys = GetCloudletInstance();
             using (var session = CreateSession())
             {
-                var cql = "select content from files where filename = :filename";
+                var cql = "select content from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "filename", source },
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                    { "filename", _rootResolver.RelativePath(source) },
                 };
-                string content;
-                using (var rs = await session.ExecuteAsync(new SimpleStatement(args, cql)))
-                {
-                    var row = rs.FirstOrDefault() ?? throw new HyperlambdaException("No such file");
-                    content = row.GetValue<string>("content");
-                }
-                await SaveAsync(destination, content);
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                var row = rs.FirstOrDefault() ?? throw new HyperlambdaException("No such file");
+                var content = row.GetValue<string>("content");
+                await SaveAsync(
+                    session,
+                    keys.Client,
+                    keys.Cloudlet,
+                    _rootResolver.RelativePath(destination),
+                    content);
             }
         }
 
@@ -62,12 +69,15 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task DeleteAsync(string path)
         {
+            var keys = GetCloudletInstance();
             using (var session = CreateSession())
             {
-                var cql = "delete from files where filename = :filename";
+                var cql = "delete from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "filename", path },
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                    { "filename", _rootResolver.RelativePath(path) },
                 };
                 await session.ExecuteAsync(new SimpleStatement(args, cql));
             }
@@ -82,18 +92,19 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task<bool> ExistsAsync(string path)
         {
+            var keys = GetCloudletInstance();
             using (var session = CreateSession())
             {
-                var cql = "select filename from files where filename = :filename";
+                var cql = "select filename from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "filename", path },
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                    { "filename", _rootResolver.RelativePath(path) },
                 };
-                using (var rs = await session.ExecuteAsync(new SimpleStatement(args, cql)))
-                {
-                    var row = rs.FirstOrDefault();
-                    return row == null ? false : true;
-                }
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                var row = rs.FirstOrDefault();
+                return row == null ? false : true;
             }
         }
 
@@ -106,24 +117,28 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task<List<string>> ListFilesAsync(string folder, string extension = null)
         {
+            var keys = GetCloudletInstance();
+            var relativeFolder = _rootResolver.RelativePath(folder);
             using (var session = CreateSession())
             {
-                var cql = "select filename from files where folder = :folder";
+                var cql = "select filename from files where client = :client and cloudlet = :cloudlet";
                 var args = new Dictionary<string, object>
                 {
-                    { "folder", folder },
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
                 };
-                using (var rs = await session.ExecuteAsync(new SimpleStatement(args, cql)))
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                var result = new List<string>();
+                foreach (var idx in rs.GetRows())
                 {
-                    var result = new List<string>();
-                    foreach (var idx in rs.GetRows())
+                    var idxFile = idx.GetValue<string>("filename");
+                    if (extension == null || idxFile.EndsWith(extension))
                     {
-                        var idxFile = idx.GetValue<string>("filename");
-                        if (extension == null || idxFile.EndsWith(extension))
+                        if (idxFile.StartsWith(relativeFolder) && idxFile.LastIndexOf("/") == relativeFolder.LastIndexOf("/"))
                             result.Add(idxFile);
                     }
-                    return result;
                 }
+                return result;
             }
         }
 
@@ -136,18 +151,19 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task<string> LoadAsync(string path)
         {
+            var keys = GetCloudletInstance();
             using (var session = CreateSession())
             {
-                var cql = "select content from files where filename = :filename";
+                var cql = "select content from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "filename", Path.GetFileName(path) },
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                    { "filename", _rootResolver.RelativePath(path) },
                 };
-                using (var rs = await session.ExecuteAsync(new SimpleStatement(args, cql)))
-                {
-                    var row = rs.FirstOrDefault() ?? throw new HyperlambdaException("No such file found");
-                    return row.GetValue<string>("content");
-                }
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                var row = rs.FirstOrDefault() ?? throw new HyperlambdaException("No such file found");
+                return row.GetValue<string>("content");
             }
         }
 
@@ -172,14 +188,26 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task MoveAsync(string source, string destination)
         {
+            var keys = GetCloudletInstance();
             using (var session = CreateSession())
             {
-                var cql = "update files set folder = :dest where filename = :filename";
+                var cql = "select content from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 var args = new Dictionary<string, object>
                 {
-                    { "filename", source },
-                    { "dest", Path.GetDirectoryName(destination) },
+                    { "client", keys.Client },
+                    { "cloudlet", keys.Cloudlet },
+                    { "filename", _rootResolver.RelativePath(source) },
                 };
+                var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
+                var row = rs.FirstOrDefault() ?? throw new HyperlambdaException("No such source file");
+                var content = row.GetValue<string>("content");
+                await SaveAsync(
+                    session,
+                    keys.Client,
+                    keys.Cloudlet,
+                    _rootResolver.RelativePath(destination),
+                    content);
+                cql = "delete from files where client = :client and cloudlet = :cloudlet and filename = :filename";
                 await session.ExecuteAsync(new SimpleStatement(args, cql));
             }
         }
@@ -199,16 +227,15 @@ namespace magic.io.scylla
         /// <inheritdoc />
         public async Task SaveAsync(string path, string content)
         {
+            var keys = GetCloudletInstance();
             using (var session = CreateSession())
             {
-                var cql = "insert into files (filename, folder, content) values (:filename, :folder, :content)";
-                var args = new Dictionary<string, object>
-                {
-                    { "filename", path },
-                    { "folder", Path.GetDirectoryName(path) },
-                    { "content", content }
-                };
-                await session.ExecuteAsync(new SimpleStatement(args, cql));
+                await SaveAsync(
+                    session,
+                    keys.Client,
+                    keys.Cloudlet,
+                    _rootResolver.RelativePath(path),
+                    content);
             }
         }
 
@@ -229,6 +256,39 @@ namespace magic.io.scylla
                 .AddContactPoints(_configuration["magic:io:scylla:host"] ?? "127.0.0.1")
                 .Build();
             return cluster.Connect("magic");
+        }
+
+        /*
+         * Returns cloudlet and client ID using the root resolver.
+         */
+        (string Client, string Cloudlet) GetCloudletInstance()
+        {
+            var rootFolder = _rootResolver.RootFolder;
+            var items = rootFolder.Split('/');
+            var client = items.First();
+            var cloudlet = string.Join("/", items.Skip(1));
+            return (client, cloudlet);
+        }
+
+        /*
+         * Common helper method to save file on specified session given specified client and cloudlet ID.
+         */
+        async Task SaveAsync(
+            ISession session,
+            string client,
+            string cloudlet,
+            string path,
+            string content)
+        {
+            var cql = "insert into files (client, cloudlet, filename, content) values (:client, :cloudlet, :filename, :content)";
+            var args = new Dictionary<string, object>
+            {
+                { "client", client },
+                { "cloudlet", cloudlet },
+                { "filename", path },
+                { "content", content },
+            };
+            await session.ExecuteAsync(new SimpleStatement(args, cql));
         }
 
         #endregion
