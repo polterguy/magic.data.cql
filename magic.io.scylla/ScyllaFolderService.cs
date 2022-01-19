@@ -12,6 +12,9 @@ using magic.node.contracts;
 
 namespace magic.io.scylla
 {
+    /// <summary>
+    /// Folder service for Magic storing folders in ScyllaDB.
+    /// </summary>
     public class ScyllaFolderService : IFolderService
     {
         readonly IConfiguration _configuration;

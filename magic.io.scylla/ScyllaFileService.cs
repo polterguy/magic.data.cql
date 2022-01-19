@@ -13,6 +13,9 @@ using magic.node.extensions;
 
 namespace magic.io.scylla
 {
+    /// <summary>
+    /// File service for Magic storing files in ScyllaDB.
+    /// </summary>
     public class ScyllaFileService : IFileService
     {
         readonly IConfiguration _configuration;
