@@ -66,7 +66,7 @@ namespace magic.data.cql.io
                 await SaveAsync(
                     session,
                     _rootResolver.DynamicFiles,
-                    _rootResolver.RelativePath(destination),
+                    destination,
                     content);
             }
         }
@@ -142,7 +142,7 @@ namespace magic.data.cql.io
                 var args = new Dictionary<string, object>
                 {
                     { "cloudlet", _rootResolver.DynamicFiles },
-                    { "folder", "/" + _rootResolver.RelativePath(folder).Trim('/') + "/" },
+                    { "folder", relativeFolder },
                 };
                 var rs = await session.ExecuteAsync(new SimpleStatement(args, cql));
                 var result = new List<string>();
@@ -151,7 +151,7 @@ namespace magic.data.cql.io
                     var idxFile = idx.GetValue<string>("filename");
                     if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
                     {
-                        result.Add(_rootResolver.DynamicFiles.TrimEnd('/') + "/" + relativeFolder.Trim('/') + "/" + idxFile);
+                        result.Add(_rootResolver.DynamicFiles.TrimEnd('/') + relativeFolder + idxFile);
                     }
                 }
                 return result;
@@ -229,7 +229,7 @@ namespace magic.data.cql.io
                 await SaveAsync(
                     session,
                     _rootResolver.DynamicFiles,
-                    _rootResolver.RelativePath(destination),
+                    destination,
                     content);
                 cql = "delete from files where cloudlet = :cloudlet and folder = :folder and filename = :filename";
                 await session.ExecuteAsync(new SimpleStatement(args, cql));
@@ -259,13 +259,13 @@ namespace magic.data.cql.io
                 if (!await CqlFolderService.FolderExists(
                     session,
                     _rootResolver.DynamicFiles,
-                    destinationFolder.Substring(0, destinationFolder.LastIndexOf("/") + 1)))
+                    destinationFolder))
                     throw new HyperlambdaException("Destination folder doesn't exist");
 
                 await SaveAsync(
                     session,
                     _rootResolver.DynamicFiles,
-                    _rootResolver.RelativePath(path),
+                    path,
                     content);
             }
         }
@@ -309,6 +309,7 @@ namespace magic.data.cql.io
                 { "cloudlet", cloudlet },
                 { "folder", fullPath.Substring(0, fullPath.LastIndexOf('/') + 1) },
                 { "filename", fullPath.Substring(fullPath.LastIndexOf('/') + 1) },
+                { "content", content },
             };
             await session.ExecuteAsync(new SimpleStatement(args, cql));
         }
