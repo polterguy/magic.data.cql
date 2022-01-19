@@ -3,18 +3,18 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageId>magic.io.scylla</PackageId>
+    <PackageId>magic.data.cql</PackageId>
     <Authors>Thomas Hansen</Authors>
     <Company>Aista, Ltd</Company>
     <Copyright>Aista, Ltd, thomas@servergardens.com</Copyright>
-    <Description>ScyllaDB data adapters for Magic to store files and folders, etc. To use package go to https://polterguy.github.io</Description>
-    <PackageProjectUrl>https://github.com/polterguy/magic.io.scylla</PackageProjectUrl>
+    <Description>CQL data adapters for Magic to store files and folders, etc. To use package go to https://polterguy.github.io</Description>
+    <PackageProjectUrl>https://github.com/polterguy/magic.data.cql</PackageProjectUrl>
     <PackOnBuild>true</PackOnBuild>
     <PackageVersion>10.0.19</PackageVersion>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/polterguy/magic.io.scylla.git</RepositoryUrl>
-    <PackageTags>dsl, script language, scripting, hyperlambda</PackageTags>
+    <RepositoryUrl>https://github.com/polterguy/magic.data.cql.git</RepositoryUrl>
+    <PackageTags>cql, cassandra, scylladb</PackageTags>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <PackageIcon>ico.png</PackageIcon>
     <IncludeSymbols>true</IncludeSymbols>
@@ -44,7 +44,7 @@
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile>bin/Release/netstandard2.0/magic.io.scylla.xml</DocumentationFile>
+    <DocumentationFile>bin/Release/netstandard2.0/magic.data.cql.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
