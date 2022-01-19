@@ -34,8 +34,10 @@ namespace magic.data.cql.helpers
             string cql,
             params object[] args)
         {
-            var rs = await session.ExecuteAsync(GetStatement(session, cql).Bind(args));
-            return rs.FirstOrDefault();
+            using (var rs = await session.ExecuteAsync(GetStatement(session, cql).Bind(args)))
+            {
+                return rs.FirstOrDefault();
+            }
         }
 
         /*
@@ -46,7 +48,7 @@ namespace magic.data.cql.helpers
             string cql,
             params object[] args)
         {
-            await session.ExecuteAsync(GetStatement(session, cql).Bind(args));
+            using (await session.ExecuteAsync(GetStatement(session, cql).Bind(args))) { }
         }
 
         /*
@@ -60,12 +62,21 @@ namespace magic.data.cql.helpers
         /*
          * Creates a ScyllaDB session and returns to caller.
          */
+        static Cluster _cluster;
+        static readonly object _locker = new object();
         internal static ISession CreateSession(IConfiguration configuration, string db = "magic")
         {
-            var cluster = Cluster.Builder()
-                .AddContactPoints(configuration["magic:cql:host"] ?? "127.0.0.1")
-                .Build();
-            return cluster.Connect(db);
+            if (_cluster == null)
+            {
+                lock (_locker)
+                {
+                    if (_cluster == null)
+                        _cluster = Cluster.Builder()
+                            .AddContactPoints(configuration["magic:cql:host"] ?? "127.0.0.1")
+                            .Build();
+                }
+            }
+            return _cluster.Connect(db);
         }
 
         #region [ -- Private helper methods -- ]

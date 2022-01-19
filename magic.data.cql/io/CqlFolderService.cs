@@ -74,7 +74,7 @@ namespace magic.data.cql.io
             var relPath = _rootResolver.RelativePath(path);
             using (var session = Utilities.CreateSession(_configuration))
             {
-                var rs = await Utilities.RecordsAsync(
+                await Utilities.ExecuteAsync(
                     session,
                     "delete from files where cloudlet = ? and folder like ?",
                     _rootResolver.DynamicFiles,
@@ -113,19 +113,21 @@ namespace magic.data.cql.io
             var relativeFolder = _rootResolver.RelativePath(folder);
             using (var session = Utilities.CreateSession(_configuration))
             {
-                var rs = await Utilities.RecordsAsync(
+                using (var rs = await Utilities.RecordsAsync(
                     session,
                     "select folder from files where cloudlet = ? and folder like ? and filename = ''",
                     _rootResolver.DynamicFiles,
-                    relativeFolder + "%");
-                var result = new List<string>();
-                foreach (var idx in rs.GetRows())
+                    relativeFolder + "%"))
                 {
-                    var idxFolder = idx.GetValue<string>("folder").TrimEnd('/');
-                    if (idxFolder.StartsWith(relativeFolder) && idxFolder.LastIndexOf("/") == relativeFolder.LastIndexOf("/"))
-                        result.Add(_rootResolver.DynamicFiles.TrimEnd('/') + idxFolder + "/");
+                    var result = new List<string>();
+                    foreach (var idx in rs.GetRows())
+                    {
+                        var idxFolder = idx.GetValue<string>("folder").TrimEnd('/');
+                        if (idxFolder.StartsWith(relativeFolder) && idxFolder.LastIndexOf("/") == relativeFolder.LastIndexOf("/"))
+                            result.Add(_rootResolver.DynamicFiles.TrimEnd('/') + idxFolder + "/");
+                    }
+                    return result;
                 }
-                return result;
             }
         }
 

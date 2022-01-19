@@ -108,18 +108,21 @@ namespace magic.data.cql.io
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relPath.Folder))
                     throw new HyperlambdaException("Folder doesn't exist");
 
-                var result = new List<string>();
-                foreach (var idx in await Utilities.RecordsAsync(
+                using (var rs = await Utilities.RecordsAsync(
                     session,
                     "select filename from files where cloudlet = ? and folder = ?",
                     _rootResolver.DynamicFiles,
                     relPath.Folder))
                 {
-                    var idxFile = idx.GetValue<string>("filename");
-                    if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
-                        result.Add(_rootResolver.DynamicFiles + relPath.Folder.Substring(1) + idxFile);
+                    var result = new List<string>();
+                    foreach (var idx in rs)
+                    {
+                        var idxFile = idx.GetValue<string>("filename");
+                        if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
+                            result.Add(_rootResolver.DynamicFiles + relPath.Folder.Substring(1) + idxFile);
+                    }
+                    return result;
                 }
-                return result;
             }
         }
 
