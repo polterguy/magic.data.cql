@@ -4,6 +4,7 @@
 
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Cassandra;
 
 namespace magic.data.cql.helpers
@@ -45,6 +46,25 @@ namespace magic.data.cql.helpers
             params (string, object)[] args)
         {
             await session.ExecuteAsync(new SimpleStatement(args.ToDictionary(x => x.Item1, x => x.Item2), cql));
+        }
+
+        /*
+         * Breaks down the specified path into its folder value and its file value.
+         */
+        internal static (string Folder, string File) BreakDownPath(string path)
+        {
+            return (path.Substring(0, path.LastIndexOf('/') + 1), path.Substring(path.LastIndexOf('/') + 1));
+        }
+
+        /*
+         * Creates a ScyllaDB session and returns to caller.
+         */
+        internal static ISession CreateSession(IConfiguration configuration, string db = "magic")
+        {
+            var cluster = Cluster.Builder()
+                .AddContactPoints(configuration["magic:cql:host"] ?? "127.0.0.1")
+                .Build();
+            return cluster.Connect(db);
         }
     }
 }

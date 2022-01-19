@@ -41,16 +41,12 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task CopyAsync(string source, string destination)
         {
-            using (var session = CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration))
             {
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, destination))
                     throw new HyperlambdaException("Destination folder doesn't exist");
 
-                await SaveAsync(
-                    session,
-                    _rootResolver,
-                    destination,
-                    await GetFileContent(session, _rootResolver, source));
+                await SaveAsync(session, _rootResolver, destination, await GetFileContent(session, _rootResolver, source));
             }
         }
 
@@ -63,9 +59,9 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task DeleteAsync(string path)
         {
-            using (var session = CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration))
             {
-                var relPath = BreakDownPath(_rootResolver.RelativePath(path));
+                var relPath = Utilities.BreakDownPath(_rootResolver.RelativePath(path));
                 await Utilities.ExecuteAsync(
                     session,
                     "delete from files where cloudlet = :cloudlet and folder = :folder and filename = :filename",
@@ -84,9 +80,9 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<bool> ExistsAsync(string path)
         {
-            using (var session = CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration))
             {
-                var relPath = BreakDownPath(_rootResolver.RelativePath(path));
+                var relPath = Utilities.BreakDownPath(_rootResolver.RelativePath(path));
                 var row = await Utilities.SingleAsync(
                     session,
                     "select filename from files where cloudlet = :cloudlet and folder = :folder and filename = :filename",
@@ -106,9 +102,9 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFilesAsync(string folder, string extension = null)
         {
-            using (var session = CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration))
             {
-                var relPath = BreakDownPath(_rootResolver.RelativePath(folder));
+                var relPath = Utilities.BreakDownPath(_rootResolver.RelativePath(folder));
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relPath.Folder))
                     throw new HyperlambdaException("Folder doesn't exist");
 
@@ -136,7 +132,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<string> LoadAsync(string path)
         {
-            using (var session = CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration))
             {
                 return await GetFileContent(session, _rootResolver, path);
             }
@@ -163,19 +159,15 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task MoveAsync(string source, string destination)
         {
-            using (var session = CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration))
             {
-                var relDest = BreakDownPath(_rootResolver.RelativePath(destination));
+                var relDest = Utilities.BreakDownPath(_rootResolver.RelativePath(destination));
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relDest.Folder))
                     throw new HyperlambdaException("Destination folder doesn't exist");
 
-                await SaveAsync(
-                    session,
-                    _rootResolver,
-                    destination,
-                    await GetFileContent(session, _rootResolver, source));
+                await SaveAsync(session, _rootResolver, destination, await GetFileContent(session, _rootResolver, source));
 
-                var relSrc = BreakDownPath(_rootResolver.RelativePath(source));
+                var relSrc = Utilities.BreakDownPath(_rootResolver.RelativePath(source));
                 await Utilities.ExecuteAsync(
                     session,
                     "delete from files where cloudlet = :cloudlet and folder = :folder and filename = :filename",
@@ -200,9 +192,9 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task SaveAsync(string path, string content)
         {
-            using (var session = CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration))
             {
-                var relDest = BreakDownPath(_rootResolver.RelativePath(path));
+                var relDest = Utilities.BreakDownPath(_rootResolver.RelativePath(path));
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relDest.Folder))
                     throw new HyperlambdaException("Destination folder doesn't exist");
 
@@ -219,17 +211,6 @@ namespace magic.data.cql.io
         #region [ -- Internal helper methods -- ]
 
         /*
-         * Creates a ScyllaDB session and returns to caller.
-         */
-        internal static ISession CreateSession(IConfiguration configuration, string db = "magic")
-        {
-            var cluster = Cluster.Builder()
-                .AddContactPoints(configuration["magic:cql:host"] ?? "127.0.0.1")
-                .Build();
-            return cluster.Connect(db);
-        }
-
-        /*
          * Returns the content of the specified file to caller.
          */
         internal static async Task<string> GetFileContent(
@@ -237,7 +218,7 @@ namespace magic.data.cql.io
             IRootResolver rootResolver,
             string path)
         {
-            var rel = BreakDownPath(rootResolver.RelativePath(path));
+            var rel = Utilities.BreakDownPath(rootResolver.RelativePath(path));
             var rs = await Utilities.SingleAsync(
                 session,
                 "select content from files where cloudlet = :cloudlet and folder = :folder and filename = :filename",
@@ -260,24 +241,14 @@ namespace magic.data.cql.io
             string path,
             string content)
         {
-            var cql = "insert into files (cloudlet, folder, filename, content) values (:cloudlet, :folder, :filename, :content)";
-            var destPath = BreakDownPath(rootResolver.RelativePath(path));
-            var args = new Dictionary<string, object>
-            {
-                { "cloudlet", rootResolver.DynamicFiles },
-                { "folder", destPath.Folder },
-                { "filename", destPath.File },
-                { "content", content },
-            };
-            await session.ExecuteAsync(new SimpleStatement(args, cql));
-        }
-
-        /*
-         * Breaks down the specified path into its folder value and its file value.
-         */
-        internal static (string Folder, string File) BreakDownPath(string path)
-        {
-            return (path.Substring(0, path.LastIndexOf('/') + 1), path.Substring(path.LastIndexOf('/') + 1));
+            var relPath = Utilities.BreakDownPath(rootResolver.RelativePath(path));
+            await Utilities.ExecuteAsync(
+                session,
+                "insert into files (cloudlet, folder, filename, content) values (:cloudlet, :folder, :filename, :content)",
+                ("cloudlet", rootResolver.DynamicFiles),
+                ("folder", relPath.Folder),
+                ("filename", relPath.File),
+                ("content", content));
         }
 
         #endregion
