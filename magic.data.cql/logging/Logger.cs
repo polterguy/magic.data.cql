@@ -33,8 +33,8 @@ namespace magic.data.cql.logging
             IMagicConfiguration magicConfiguration)
         {
             _signaler = signaler;
-            _magicConfiguration = magicConfiguration;
             _configuration = configuration;
+            _magicConfiguration = magicConfiguration;
         }
 
         #region [ -- Interface implementations -- ]
