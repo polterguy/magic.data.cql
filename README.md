@@ -74,3 +74,78 @@ create keyspace if not exists magic with replication = { 'class': 'SimpleStrateg
 use magic;
 create table if not exists files(cloudlet text, folder text, filename text, content text, primary key(cloudlet, folder, filename));
 ```
+
+## Adding existing files into keyspace
+
+The following Hyperlambda will insert all your existing files and folders into your cluster keyspace, allowing you to
+play around with an existing CQL file system implementation. Notice, you'll have to change the **[.root]** value to resemble
+the absolute root folder for your Magic backend.
+
+```
+/*
+ * Inserts all dynamic files and folders into the magic CQL database.
+ */
+cql.connect:magic
+
+   /*
+    * The root folder where your Magic backend is running.
+    */
+   .root:"/Users/thomashansen/Documents/projects/magic/magic/backend/"
+
+   /*
+    * Inserting root folder.
+    */
+   cql.execute:"insert into files (cloudlet, folder, filename, content) values ('/Users/thomashansen/Documents/projects/magic/magic/backend/', '/files/', '', '')"
+
+   /*
+    * Inserting appsettings.json
+    */
+   config.load
+   cql.execute:"insert into files (cloudlet, folder, filename, content) values (:cloudlet, '/config/', 'appsettings.json', :config)"
+      cloudlet:x:@.root
+      config:x:@config.load
+
+   /*
+    * Inserting folders.
+    */
+   signal:magic.io.folder.list-recursively
+      .:/
+   for-each:x:-/*
+
+      strings.concat
+         .:/files
+         get-value:x:@.dp/#
+      
+      cql.execute:"insert into files (cloudlet, folder, filename, content) values (:cloudlet, :folder, '', '')"
+         cloudlet:x:@.root
+         folder:x:@strings.concat
+
+   /*
+    * Inserting files.
+    */
+   signal:magic.io.file.load-recursively
+      .:/
+   for-each:x:-/*
+   
+      strings.split:x:@.dp/#
+         .:/
+      unwrap:x:+
+      .filename:x:@strings.split/0/-
+      remove-nodes:x:@strings.split/0/-
+      strings.join:x:@strings.split/*
+         .:/
+      strings.concat
+         .:/files/
+         get-value:x:@strings.join
+         .:/
+      strings.replace:x:-
+         .://
+         .:/
+      cql.execute:"insert into files (cloudlet, folder, filename, content) values (:cloudlet, :folder, :filename, :content)"
+         cloudlet:x:@.root
+         folder:x:@strings.replace
+         filename:x:@.filename
+         content:x:@.dp/#/*
+
+remove-nodes:x:../**/signal/*
+```
