@@ -17,6 +17,17 @@ namespace magic.data.cql.slots
     [Slot(Name = "cql.connect")]
     public class Connect : ISlot, ISlotAsync
     {
+        readonly IConfiguration _configuration;
+
+        /// <summary>
+        /// Constructs a new instance of your type.
+        /// </summary>
+        /// <param name="configuration">Configuration object.</param>
+        public Connect(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         /// <summary>
         /// Implementation of your slot.
         /// </summary>
@@ -24,7 +35,7 @@ namespace magic.data.cql.slots
         /// <param name="input">Arguments to your slot.</param>
         public void Signal(ISignaler signaler, Node input)
         {
-            var connection = Utilities.GetConnectionSettings(input);
+            var connection = Utilities.GetConnectionSettings(_configuration, input);
             using (var session = Utilities.CreateSession(connection.Cluster, connection.KeySpace))
             {
                 signaler.Scope(
@@ -43,7 +54,7 @@ namespace magic.data.cql.slots
         /// <returns>An awaitable task.</returns>
         public async Task SignalAsync(ISignaler signaler, Node input)
         {
-            var connection = Utilities.GetConnectionSettings(input);
+            var connection = Utilities.GetConnectionSettings(_configuration, input);
             using (var session = Utilities.CreateSession(connection.Cluster, connection.KeySpace))
             {
                 await signaler.ScopeAsync(

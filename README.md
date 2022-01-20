@@ -24,14 +24,15 @@ while the `magic` parts above is a keyspace within that cluster. In such a regar
 RDBMS slots in usage, except of course it open a connection towards a NoSQL database such as Cassandra or ScyllaDB,
 and returns the result of executing your SQL towards a keyspace within that cluster.
 
-## Alternative file system services
+## Alternative system services
 
 The adapter also contains alternative file system services, implementing `IFileService`, `IFolderService`, and
 `IStreamService`, allowing you to use it interchangeable as a _"virtual file system"_ for cases where you want
 to have 100% stateless magic instances, which is important if you're using Magic in a Kubernetes cluster or
 something similar, load balancing invocations, virtually resolving towards your virtual file system.
 If you take this path you'll have to configure your _"appsettings.json"_ file such as illustrated further
-down in this document.
+down in this document. The project also contains a log implementation service you can use that will create
+log entries in a CQL based storage of your choice. See below for details about how to configure this.
 
 ## Configuration
 
@@ -67,12 +68,35 @@ as follows to your _"appsettings.json"_ file.
 
 If you want to use a CQL based virtual file system, you'll have to create a keyspace called _"magic"_
 within your _"generic"_ cluster connection, with a table named _"files"_. Below is an example of how
-you could achieve this using CQL.
+you could achieve this using CQL. If you want to use a CQL based log implementation, you'll have to
+configure Magic to use a different log implementation such as follows.
+
+```json
+{
+  "magic": {
+    "logging": {
+      "service": "magic.data.cql.logging.Logger"
+    }
+  }
+}
+```
+
+To use the alternative CQL based file storage system you'll have to create your _"magic"_ keyspace and its 
+_"files"_ table as follows.
 
 ```sql
-create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 1 };
+create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
 use magic;
 create table if not exists files(cloudlet text, folder text, filename text, content text, primary key(cloudlet, folder, filename));
+```
+
+To use the alternative CQL based log implementation you'll have to create your _"magic"_ keyspace and its
+_"log\_entries"_ table as follows.
+
+```sql
+create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
+use magic;
+create table if not exists log_entries(id uuid, created timestamp, type text, content text, exception text, primary key(id));
 ```
 
 ## Adding existing files into keyspace
