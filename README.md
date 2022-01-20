@@ -149,3 +149,22 @@ cql.connect:magic
 
 remove-nodes:x:../**/signal/*
 ```
+
+## Project website
+
+The source code for this repository can be found at [github.com/polterguy/magic.data.cql](https://github.com/polterguy/magic.data.common), and you can provide feedback, provide bug reports, etc at the same place.
+
+## Quality gates
+
+- ![Build status](https://github.com/polterguy/magic.data.cql/actions/workflows/build.yaml/badge.svg)
+- [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=alert_status)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=bugs)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=code_smells)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=coverage)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=duplicated_lines_density)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=ncloc)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=security_rating)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=sqale_index)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
+- [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=polterguy_magic.data.cql&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=polterguy_magic.data.cql)
