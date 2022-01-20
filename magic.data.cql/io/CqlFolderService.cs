@@ -105,7 +105,7 @@ namespace magic.data.cql.io
                     session,
                     "select folder from files where cloudlet = ? and folder = ? and filename = ''",
                     _rootResolver.RootFolder,
-                    path.Substring(_rootResolver.RootFolder.Length - 1)) == null ? false : true;
+                    path.Substring(_rootResolver.RootFolder.Length - 1)) != null;
             }
         }
 
