@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Cassandra;
+using magic.node;
 using magic.node.contracts;
+using magic.node.extensions;
 
 namespace magic.data.cql.helpers
 {
@@ -16,6 +18,9 @@ namespace magic.data.cql.helpers
      */
     internal static class Utilities
     {
+        static readonly ConcurrentDictionary<string, Cluster> _clusters = new System.Collections.Concurrent.ConcurrentDictionary<string, Cluster>();
+        static ConcurrentDictionary<string, PreparedStatement> _statements = new ConcurrentDictionary<string, PreparedStatement>();
+
         /*
          * Executes the specified CQL with the specified parameters and returns to caller as a RowSet.
          */
@@ -69,26 +74,50 @@ namespace magic.data.cql.helpers
         /*
          * Creates a ScyllaDB session and returns to caller.
          */
-        static Cluster _cluster;
-        static readonly object _locker = new object();
-        internal static ISession CreateSession(IConfiguration configuration, string db = "magic")
+        internal static ISession CreateSession(string cluster, string keyspace)
         {
-            if (_cluster == null)
+            return _clusters.GetOrAdd(cluster, (key) =>
             {
-                lock (_locker)
-                {
-                    if (_cluster == null)
-                        _cluster = Cluster.Builder()
-                            .AddContactPoints(configuration["magic:cql:host"] ?? "127.0.0.1")
-                            .Build();
-                }
+                return Cluster.Builder()
+                    .AddContactPoints(key)
+                    .Build();
+            }).Connect(keyspace);
+        }
+
+        internal static ISession CreateSession(IConfiguration configuration)
+        {
+            var connection = GetDefaultConnection(configuration);
+            return CreateSession(connection.Cluster, connection.KeySpace);
+        }
+
+        /*
+         * Returns connection settings for Cluster and keyspace to caller given the  specified node.
+         */
+        internal static (string Cluster, string KeySpace) GetConnectionSettings(Node node)
+        {
+            var value = node.GetEx<string>();
+            if (value.StartsWith("[") && value.EndsWith("]"))
+            {
+                var splits = value.Substring(1, value.Length - 2).Split('|');
+                if (splits.Count() != 2)
+                    throw new HyperlambdaException($"I don't understand how to connect to a CQL database using '{value}'");
+                return (splits[0], splits[1]);
             }
-            return _cluster.Connect(db);
+            else
+            {
+                return ("generic", value);
+            }
         }
 
         #region [ -- Private helper methods -- ]
 
-        static ConcurrentDictionary<string, PreparedStatement> _statements = new ConcurrentDictionary<string, PreparedStatement>();
+        /*
+         * Returns the default Cluster and keyspace according to configuration settings.
+         */
+        static (string Cluster, string KeySpace) GetDefaultConnection(IConfiguration configuration)
+        {
+            return (configuration["magic:cql:generic:host"] ?? "127.0.0.1", "magic");
+        }
 
         /*
          * Returns a prepared statement from the specified cql.

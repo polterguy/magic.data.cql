@@ -37,7 +37,8 @@ namespace magic.data.cql.slots
         /// <param name="input">Arguments to your slot.</param>
         public void Signal(ISignaler signaler, Node input)
         {
-            using (var session = Utilities.CreateSession(_configuration, input.GetEx<string>()))
+            var connection = Utilities.GetConnectionSettings(input);
+            using (var session = Utilities.CreateSession(connection.Cluster, connection.KeySpace))
             {
                 signaler.Scope(
                     "cql.connect",
@@ -55,7 +56,8 @@ namespace magic.data.cql.slots
         /// <returns>An awaitable task.</returns>
         public async Task SignalAsync(ISignaler signaler, Node input)
         {
-            using (var session = Utilities.CreateSession(_configuration, input.GetEx<string>()))
+            var connection = Utilities.GetConnectionSettings(input);
+            using (var session = Utilities.CreateSession(connection.Cluster, connection.KeySpace))
             {
                 await signaler.ScopeAsync(
                     "cql.connect",
