@@ -90,7 +90,7 @@ namespace magic.data.cql.io
                     _rootResolver.RootFolder,
                     relPath.Folder,
                     relPath.File);
-                return row == null ? false : true;
+                return row != null;
             }
         }
 

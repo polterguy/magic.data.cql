@@ -5,8 +5,6 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using magic.node;
-using magic.data.cql.io;
-using magic.node.extensions;
 using magic.data.cql.helpers;
 using magic.signals.contracts;
 
@@ -19,17 +17,6 @@ namespace magic.data.cql.slots
     [Slot(Name = "cql.connect")]
     public class Connect : ISlot, ISlotAsync
     {
-        readonly IConfiguration _configuration;
-
-        /// <summary>
-        /// Creates a new instance of your type.
-        /// </summary>
-        /// <param name="configuration">Configuration for your application.</param>
-        public Connect(IConfiguration configuration)
-        {
-            _configuration = configuration;
-        }
-
         /// <summary>
         /// Implementation of your slot.
         /// </summary>

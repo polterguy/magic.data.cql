@@ -54,7 +54,7 @@ namespace magic.data.cql.helpers
             string cql,
             params object[] args)
         {
-            using (await session.ExecuteAsync(GetStatement(session, cql).Bind(args))) { }
+            await session.ExecuteAsync(GetStatement(session, cql).Bind(args));
         }
 
         /*

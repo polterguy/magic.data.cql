@@ -166,7 +166,7 @@ namespace magic.data.cql.io
                 session,
                 "select folder from files where cloudlet = ? and folder = ? and filename = ''",
                 rootResolver.RootFolder,
-                path) == null ? false : true;
+                path) != null;
         }
 
         #endregion
