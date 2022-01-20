@@ -3,6 +3,7 @@
  */
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
@@ -38,9 +39,9 @@ namespace magic.data.cql.io
         }
 
         /// <inheritdoc />
-        public Task CopyAsync(string source, string destination)
+        public async Task CopyAsync(string source, string destination)
         {
-            throw new NotImplementedException();
+            await CopyMoveImplementation(source, destination, false);
         }
 
         /// <inheritdoc />
@@ -156,9 +157,9 @@ namespace magic.data.cql.io
         }
 
         /// <inheritdoc />
-        public Task MoveAsync(string source, string destination)
+        public async Task MoveAsync(string source, string destination)
         {
-            throw new NotImplementedException();
+            await CopyMoveImplementation(source, destination, true);
         }
 
         #region [ -- Internal helper methods -- ]
@@ -178,6 +179,54 @@ namespace magic.data.cql.io
                 ids.Tenant,
                 ids.Cloudlet,
                 path) != null;
+        }
+
+        #endregion
+
+        #region [ -- Private helper methods -- ]
+
+        /*
+         * Implementation of copy/move.
+         */
+        async Task CopyMoveImplementation(string source, string destination, bool isMove)
+        {
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var relSrc = Utilities.Relativize(_rootResolver, source).TrimEnd('/') + "/";
+                var ids = Utilities.Resolve(_rootResolver);
+                var rs = await Utilities.RecordsAsync(
+                    session,
+                    "select folder, filename, content from files where tenant = ? and cloudlet = ? and folder like ?",
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    relSrc + "%");
+                var relDest = Utilities.Relativize(_rootResolver, destination).TrimEnd('/') + "/";
+                foreach (var idx in rs)
+                {
+                    var idxFolder = idx.GetValue<string>("folder");
+                    var idxFilename = idx.GetValue<string>("filename");
+                    var idxContent = idx.GetValue<string>("content");
+                    if (isMove)
+                    {
+                        await Utilities.ExecuteAsync(
+                            session,
+                            "delete from files where tenant = ? and cloudlet = ? and folder = ? and filename = ?",
+                            ids.Tenant,
+                            ids.Cloudlet,
+                            idxFolder,
+                            idxFilename);
+                    }
+                    idxFolder = relDest + idxFolder.Substring(relSrc.Length);
+                    await Utilities.ExecuteAsync(
+                        session,
+                        "insert into files (tenant, cloudlet, folder, filename, content) values (?, ?, ?, ?, ?)",
+                        ids.Tenant,
+                        ids.Cloudlet,
+                        idxFolder,
+                        idxFilename,
+                        idxContent);
+                }
+            }
         }
 
         #endregion
