@@ -43,7 +43,7 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
-                var relDest = destination.Substring(_rootResolver.RootFolder.Length - 1);
+                var relDest = Utilities.Relativize(_rootResolver, destination);
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relDest))
                     throw new HyperlambdaException($"Destination folder '{relDest}' doesn't exist");
 
@@ -62,11 +62,13 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
+                var ids = Utilities.Resolve(_rootResolver);
                 var relPath = Utilities.BreakDownFileName(_rootResolver, path);
                 await Utilities.ExecuteAsync(
                     session,
-                    "delete from files where cloudlet = ? and folder = ? and filename = ?",
-                    _rootResolver.RootFolder,
+                    "delete from files where tenant = ? and cloudlet = ? and folder = ? and filename = ?",
+                    ids.Tenant,
+                    ids.Cloudlet,
                     relPath.Folder,
                     relPath.File);
             }
@@ -83,11 +85,13 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
+                var ids = Utilities.Resolve(_rootResolver);
                 var relPath = Utilities.BreakDownFileName(_rootResolver, path);
                 var row = await Utilities.SingleAsync(
                     session,
-                    "select filename from files where cloudlet = ? and folder = ? and filename = ?",
-                    _rootResolver.RootFolder,
+                    "select filename from files where tenant = ? and cloudlet = ? and folder = ? and filename = ?",
+                    ids.Tenant,
+                    ids.Cloudlet,
                     relPath.Folder,
                     relPath.File);
                 return row != null;
@@ -105,14 +109,16 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
-                var relPath = folder.Substring(_rootResolver.RootFolder.Length - 1);
+                var relPath = Utilities.Relativize(_rootResolver, folder);
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relPath))
                     throw new HyperlambdaException($"Folder '{relPath}' doesn't exist");
 
+                var ids = Utilities.Resolve(_rootResolver);
                 using (var rs = await Utilities.RecordsAsync(
                     session,
-                    "select filename from files where cloudlet = ? and folder = ?",
-                    _rootResolver.RootFolder,
+                    "select filename from files where tenant = ? and cloudlet = ? and folder = ?",
+                    ids.Tenant,
+                    ids.Cloudlet,
                     relPath))
                 {
                     var result = new List<string>();
@@ -172,11 +178,13 @@ namespace magic.data.cql.io
 
                 await SaveAsync(session, _rootResolver, destination, await GetFileContent(session, _rootResolver, source));
 
+                var ids = Utilities.Resolve(_rootResolver);
                 var relSrc = Utilities.BreakDownFileName(_rootResolver, source);
                 await Utilities.ExecuteAsync(
                     session,
-                    "delete from files where cloudlet = ? and folder = ? and filename = ?",
-                    _rootResolver.RootFolder,
+                    "delete from files where tenant = ? and cloudlet = ? and folder = ? and filename = ?",
+                    ids.Tenant,
+                    ids.Cloudlet,
                     relSrc.Folder,
                     relSrc.File);
             }
@@ -224,10 +232,12 @@ namespace magic.data.cql.io
             string path)
         {
             var rel = Utilities.BreakDownFileName(rootResolver, path);
+            var ids = Utilities.Resolve(rootResolver);
             var rs = await Utilities.SingleAsync(
                 session,
-                "select content from files where cloudlet = ? and folder = ? and filename = ?",
-                rootResolver.RootFolder,
+                "select content from files where tenant = ? and cloudlet = ? and folder = ? and filename = ?",
+                ids.Tenant,
+                ids.Cloudlet,
                 rel.Folder,
                 rel.File);
             return rs?.GetValue<string>("content") ?? throw new HyperlambdaException($"File '{rel.File}' doesn't exist");
@@ -247,10 +257,12 @@ namespace magic.data.cql.io
             string content)
         {
             var relPath = Utilities.BreakDownFileName(rootResolver, path);
+            var ids = Utilities.Resolve(rootResolver);
             await Utilities.ExecuteAsync(
                 session,
-                "insert into files (cloudlet, folder, filename, content) values (?, ?, ?, ?)",
-                rootResolver.RootFolder,
+                "insert into files (tenant, cloudlet, folder, filename, content) values (?, ?, ?, ?, ?)",
+                ids.Tenant,
+                ids.Cloudlet,
                 relPath.Folder,
                 relPath.File,
                 content);

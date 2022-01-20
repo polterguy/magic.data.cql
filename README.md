@@ -86,47 +86,71 @@ _"files"_ table as follows.
 
 ```sql
 create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
+
 use magic;
-create table if not exists files(cloudlet text, folder text, filename text, content text, primary key(cloudlet, folder, filename));
+
+create table if not exists files(
+   tenant text,
+   cloudlet text,
+   folder text,
+   filename text,
+   content text,
+   primary key((tenant, cloudlet), folder, filename));
 ```
 
 To use the alternative CQL based log implementation you'll have to create your _"magic"_ keyspace and its
-_"log\_entries"_ table as follows.
+_"log"_ table as follows.
 
 ```sql
 create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
+
 use magic;
-create table if not exists log_entries(id uuid, created timestamp, type text, content text, exception text, primary key(id));
+
+create table if not exists log_entries(
+   tenant text,
+   cloudlet text,
+   created timestamp,
+   type text,
+   content text,
+   exception text,
+   primary key((tenant, cloudlet), created desc));
+
+create index if not exists log_entries_content_idx on magic.log_entries (content);
 ```
 
 ## Adding existing files into keyspace
 
 The following Hyperlambda will insert all your existing files and folders into your cluster keyspace, allowing you to
-play around with an existing CQL file system implementation. Notice, you'll have to change the **[.root]** value to resemble
-the absolute root folder for your Magic backend.
+play around with an existing CQL file system implementation. Notice, you'll have to change the **[.tenant]** and
+**[.cloudlet]** values to resemble the absolute root folder for your Magic backend. The values in the file below is
+obviously just an example of how it might look like if you've got the files on a Mac within your _"Documents"_ folder.
 
 ```
 /*
  * Inserts all dynamic files and folders into the magic CQL database.
  */
-cql.connect:magic
+cql.connect:[generic|magic]
 
    /*
     * The root folder where your Magic backend is running.
     */
-   .root:"/Users/thomashansen/Documents/projects/magic/magic/backend/"
+   .tenant:Users
+   .cloudlet:"thomashansen/Documents/projects/magic/magic/backend"
 
    /*
     * Inserting root folder.
     */
-   cql.execute:"insert into files (cloudlet, folder, filename, content) values ('/Users/thomashansen/Documents/projects/magic/magic/backend/', '/files/', '', '')"
+   cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, '/files/', '', '')"
+      tenant:x:@.tenant
+      cloudlet:x:@.cloudlet
 
    /*
     * Inserting appsettings.json
     */
    config.load
-   cql.execute:"insert into files (cloudlet, folder, filename, content) values (:cloudlet, '/config/', 'appsettings.json', :config)"
-      cloudlet:x:@.root
+   cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, '/config/', 'appsettings.json', :config)"
+      tenant:x:@.tenant
+      cloudlet:x:@.cloudlet
       config:x:@config.load
 
    /*
@@ -140,8 +164,9 @@ cql.connect:magic
          .:/files
          get-value:x:@.dp/#
       
-      cql.execute:"insert into files (cloudlet, folder, filename, content) values (:cloudlet, :folder, '', '')"
-         cloudlet:x:@.root
+      cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, :folder, '', '')"
+         tenant:x:@.tenant
+         cloudlet:x:@.cloudlet
          folder:x:@strings.concat
 
    /*
@@ -165,8 +190,9 @@ cql.connect:magic
       strings.replace:x:-
          .://
          .:/
-      cql.execute:"insert into files (cloudlet, folder, filename, content) values (:cloudlet, :folder, :filename, :content)"
-         cloudlet:x:@.root
+      cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, :folder, :filename, :content)"
+         tenant:x:@.tenant
+         cloudlet:x:@.cloudlet
          folder:x:@strings.replace
          filename:x:@.filename
          content:x:@.dp/#/*

@@ -2,6 +2,7 @@
  * Magic Cloud, copyright Aista, Ltd. See the attached LICENSE file for details.
  */
 
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
@@ -107,6 +108,23 @@ namespace magic.data.cql.helpers
             {
                 return ("generic", value);
             }
+        }
+
+        /*
+         * Returns the relative path of the specified absolute path.
+         */
+        internal static string Relativize(IRootResolver rootResolver, string path)
+        {
+            return path.Substring(rootResolver.RootFolder.Length - 1);
+        }
+
+        /*
+         * Returns the tenant ID and the cloudlet ID given the specified root resolver.
+         */
+        internal static (string Tenant, string Cloudlet) Resolve(IRootResolver rootResolver)
+        {
+            var splits = rootResolver.RootFolder.Split(new char[] {'/'}, StringSplitOptions.RemoveEmptyEntries);
+            return (splits.First(), string.Join("/", splits.Skip(1)));
         }
 
         #region [ -- Private helper methods -- ]

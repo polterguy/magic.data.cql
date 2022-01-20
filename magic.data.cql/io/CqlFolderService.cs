@@ -54,11 +54,13 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
+                var ids = Utilities.Resolve(_rootResolver);
                 await Utilities.ExecuteAsync(
                     session,
-                    "insert into files (cloudlet, folder, filename) values (?, ?, '')",
-                    _rootResolver.RootFolder,
-                    path.Substring(_rootResolver.RootFolder.Length - 1).TrimEnd('/') + "/");
+                    "insert into files (tenant, cloudlet, folder, filename) values (?, ?, ?, '')",
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    Utilities.Relativize(_rootResolver, path).TrimEnd('/') + "/");
             }
         }
 
@@ -71,20 +73,23 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task DeleteAsync(string path)
         {
-            var relPath = path.Substring(_rootResolver.RootFolder.Length - 1);
+            var relPath = Utilities.Relativize(_rootResolver, path);
             using (var session = Utilities.CreateSession(_configuration))
             {
+                var ids = Utilities.Resolve(_rootResolver);
                 var rs = await Utilities.RecordsAsync(
                     session,
-                    "select folder from files where cloudlet = ? and folder like ?",
-                    _rootResolver.RootFolder,
+                    "select folder from files where tenant = ? and cloudlet = ? and folder like ?",
+                    ids.Tenant,
+                    ids.Cloudlet,
                     relPath + '%');
                 foreach (var idx in rs)
                 {
                     await Utilities.ExecuteAsync(
                         session,
-                        "delete from files where cloudlet = ? and folder = ?",
-                        _rootResolver.RootFolder,
+                        "delete from files where tenant = ? and cloudlet = ? and folder = ?",
+                        ids.Tenant,
+                        ids.Cloudlet,
                         relPath);
                 }
             }
@@ -101,11 +106,13 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
+                var ids = Utilities.Resolve(_rootResolver);
                 return await Utilities.SingleAsync(
                     session,
-                    "select folder from files where cloudlet = ? and folder = ? and filename = ''",
-                    _rootResolver.RootFolder,
-                    path.Substring(_rootResolver.RootFolder.Length - 1)) != null;
+                    "select folder from files where tenant = ? and cloudlet = ? and folder = ? and filename = ''",
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    Utilities.Relativize(_rootResolver, path)) != null;
             }
         }
 
@@ -118,13 +125,15 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFoldersAsync(string folder)
         {
-            var relativeFolder = folder.Substring(_rootResolver.RootFolder.Length - 1);
+            var relativeFolder = Utilities.Relativize(_rootResolver, folder);
             using (var session = Utilities.CreateSession(_configuration))
             {
+                var ids = Utilities.Resolve(_rootResolver);
                 using (var rs = await Utilities.RecordsAsync(
                     session,
-                    "select folder from files where cloudlet = ? and folder like ? and filename = ''",
-                    _rootResolver.RootFolder,
+                    "select folder from files where tenant = ? and cloudlet = ? and folder like ? and filename = ''",
+                    ids.Tenant,
+                    ids.Cloudlet,
                     relativeFolder + "%"))
                 {
                     var result = new List<string>();
@@ -162,10 +171,12 @@ namespace magic.data.cql.io
             IRootResolver rootResolver,
             string path)
         {
+            var ids = Utilities.Resolve(rootResolver);
             return await Utilities.SingleAsync(
                 session,
-                "select folder from files where cloudlet = ? and folder = ? and filename = ''",
-                rootResolver.RootFolder,
+                "select folder from files where tenant = ? and cloudlet = ? and folder = ? and filename = ''",
+                ids.Tenant,
+                ids.Cloudlet,
                 path) != null;
         }
 
