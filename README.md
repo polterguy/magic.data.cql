@@ -145,19 +145,22 @@ cql.connect:[generic|magic]
       cloudlet:x:@.cloudlet
 
    /*
-    * Inserting appsettings.json
+    * Inserting appsettings.json and its folder.
     */
    config.load
    cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, '/config/', 'appsettings.json', :config)"
       tenant:x:@.tenant
       cloudlet:x:@.cloudlet
       config:x:@config.load
+   cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, '/config/', '', '')"
+      tenant:x:@.tenant
+      cloudlet:x:@.cloudlet
 
    /*
     * Inserting folders.
     */
-   signal:magic.io.folder.list-recursively
-      .:/
+   io.folder.list-recursively:/
+      display-hidden:true
    for-each:x:-/*
 
       strings.concat
@@ -172,9 +175,11 @@ cql.connect:[generic|magic]
    /*
     * Inserting files.
     */
-   signal:magic.io.file.load-recursively
-      .:/
+   io.file.list-recursively:/
+      display-hidden:true
    for-each:x:-/*
+
+      io.file.load:x:@.dp/#
    
       strings.split:x:@.dp/#
          .:/
@@ -195,9 +200,10 @@ cql.connect:[generic|magic]
          cloudlet:x:@.cloudlet
          folder:x:@strings.replace
          filename:x:@.filename
-         content:x:@.dp/#/*
+         content:x:@io.file.load
 
-remove-nodes:x:../**/signal/*
+remove-nodes:x:../**/io.folder.list-recursively/*
+remove-nodes:x:../**/io.file.list-recursively/*
 ```
 
 ## Project website
