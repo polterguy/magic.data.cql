@@ -186,6 +186,48 @@ namespace magic.data.cql.io
             }
         }
 
+        /// <inheritdoc/>
+        public IEnumerable<(string Filename, string Content)> LoadRecursively(
+            string folder,
+            string extension)
+        {
+            return LoadRecursivelyAsync(folder, extension).GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<(string Filename, string Content)>> LoadRecursivelyAsync(
+            string folder,
+            string extension)
+        {
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var relPath = Utilities.Relativize(_rootResolver, folder);
+                if (!await CqlFolderService.FolderExists(session, _rootResolver, relPath))
+                    throw new HyperlambdaException($"Folder '{relPath}' doesn't exist");
+
+                var ids = Utilities.Resolve(_rootResolver);
+                using (var rs = await Utilities.RecordsAsync(
+                    session,
+                    "select folder, filename, content from files where tenant = ? and cloudlet = ? and folder like ?",
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    relPath + "%"))
+                {
+                    var result = new List<(string Filename, string Content)>();
+                    foreach (var idx in rs)
+                    {
+                        var idxFolder = idx.GetValue<string>("folder");
+                        var idxFile = idx.GetValue<string>("filename");
+                        var idxContent = idx.GetValue<string>("content");
+                        if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
+                            result.Add((_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFile, idxContent));
+                    }
+                    result.Sort((lhs, rhs) => lhs.Filename.CompareTo(rhs.Filename));
+                    return result;
+                }
+            }
+        }
+
         /// <inheritdoc />
         public byte[] LoadBinary(string path)
         {
