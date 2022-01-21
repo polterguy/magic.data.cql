@@ -109,13 +109,13 @@ use magic;
 create table if not exists log_entries(
    tenant text,
    cloudlet text,
-   created timestamp,
+   created timeuuid,
    type text,
    content text,
    exception text,
-   primary key((tenant, cloudlet), created desc));
+   primary key((tenant, cloudlet), created)) with clustering order by (created desc);
 
-create index if not exists log_entries_content_idx on magic.log_entries (content);
+create index if not exists log_entries_content_idx on magic.log_entries ((tenant, cloudlet), content);
 ```
 
 ## Adding existing files into keyspace

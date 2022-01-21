@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using magic.node.contracts;
+using magic.node.extensions;
 using magic.data.cql.helpers;
 using magic.signals.contracts;
 using magic.lambda.logging.contracts;
@@ -15,9 +16,10 @@ using magic.lambda.logging.contracts;
 namespace magic.data.cql.logging
 {
     /// <inheritdoc/>
-    public class Logger : ILogger
+    public class Logger : ILogger, ILogQuery
     {
         readonly ISignaler _signaler;
+        readonly IRootResolver _rootResolver;
         readonly IConfiguration _configuration;
         readonly IMagicConfiguration _magicConfiguration;
 
@@ -25,14 +27,17 @@ namespace magic.data.cql.logging
         /// Constructs a new instance of the default ILogger implementation.
         /// </summary>
         /// <param name="signaler">ISignaler implementation.</param>
+        /// <param name="rootResolver">Needed to figure out tenant and cloudlet IDs.</param>
         /// <param name="configuration">Configuration object.</param>
         /// <param name="magicConfiguration">Configuration object.</param>
         public Logger(
             ISignaler signaler,
+            IRootResolver rootResolver,
             IConfiguration configuration,
             IMagicConfiguration magicConfiguration)
         {
             _signaler = signaler;
+            _rootResolver = rootResolver;
             _configuration = configuration;
             _magicConfiguration = magicConfiguration;
         }
@@ -109,6 +114,72 @@ namespace magic.data.cql.logging
             return InsertLogEntryAsync("info", value);
         }
 
+        /// <inheritdoc/>
+        public async Task<IEnumerable<LogItem>> QueryAsync(int max, object fromId, string query = null)
+        {
+            if (!string.IsNullOrEmpty(query) && (query.Contains("%") || query.Contains("?")))
+                throw new HyperlambdaException($"You cannot filter log items with wild cards");
+
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var builder = new StringBuilder();
+                var ids = Utilities.Resolve(_rootResolver);
+                List<object> args = new List<object>();
+                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception from log_entries");
+                builder.Append(" where tenant = ? and cloudlet = ?");
+                args.Add(ids.Tenant);
+                args.Add(ids.Cloudlet);
+                if (fromId != null || !string.IsNullOrEmpty(query))
+                {
+                    if (fromId != null)
+                    {
+                        builder.Append($" and created < ?");
+                        args.Add(Guid.Parse(fromId.ToString()));
+                        if (!string.IsNullOrEmpty(query))
+                        {
+                            builder.Append(" and content like ?");
+                            args.Add(query + "%");
+                        }
+                    }
+                    else
+                    {
+                            builder.Append(" and content like ?");
+                            args.Add(query + "%");
+                    }
+                }
+                builder.Append($" order by created desc limit {max} allow filtering");
+
+                var result = new List<LogItem>();
+                foreach (var idx in await Utilities.RecordsAsync(
+                    session,
+                    builder.ToString(),
+                    args.ToArray()))
+                {
+                    result.Add(new LogItem
+                    {
+                        Id = idx.GetValue<Guid>("id"),
+                        Created = idx.GetValue<DateTime>("created"),
+                        Type = idx.GetValue<string>("type"),
+                        Content = idx.GetValue<string>("content"),
+                        Exception = idx.GetValue<string>("exception"),
+                    });
+                }
+                return result;
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<LogItem> Get(object id)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public Task<long> CountAsync(string query = null)
+        {
+            throw new NotImplementedException();
+        }
+
         #endregion
 
         #region [ -- Private helper methods and properties -- ]
@@ -144,19 +215,23 @@ namespace magic.data.cql.logging
             // Verifying we're supposed to log.
             if (shouldLog)
             {
+                var ids = Utilities.Resolve(_rootResolver);
                 using (var session = Utilities.CreateSession(_configuration))
                 {
                     var builder = new StringBuilder();
-                    builder.Append("insert into log_entries (id, created, type, content");
+                    builder.Append("insert into log_entries (tenant, cloudlet, created, type, content");
                     if (error != null || stackTrace != null)
                         builder.Append(", exception");
-                    builder.Append(") values (uuid(), toUnixTimestamp(now()), ?, ?");
+                    builder.Append(") values (:tenant, :cloudlet, now(), ?, ?");
                     if (error != null || stackTrace != null)
                         builder.Append(", ?");
                     builder.Append(")");
                     var args = new List<object>
                     {
-                        type, content,
+                        ids.Tenant,
+                        ids.Cloudlet,
+                        type,
+                        content,
                     };
                     if (error != null || stackTrace != null)
                         args.Add(error?.StackTrace ?? stackTrace);
