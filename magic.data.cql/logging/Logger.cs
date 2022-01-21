@@ -143,8 +143,8 @@ namespace magic.data.cql.logging
                     }
                     else
                     {
-                            builder.Append(" and content like ?");
-                            args.Add(query + "%");
+                        builder.Append(" and content like ?");
+                        args.Add(query + "%");
                     }
                 }
                 builder.Append($" order by created desc limit {max} allow filtering");
@@ -169,15 +169,65 @@ namespace magic.data.cql.logging
         }
 
         /// <inheritdoc/>
-        public Task<LogItem> Get(object id)
+        public async Task<LogItem> Get(object id)
         {
-            throw new NotImplementedException();
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var builder = new StringBuilder();
+                var ids = Utilities.Resolve(_rootResolver);
+                List<object> args = new List<object>();
+                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception from log_entries");
+                builder.Append(" where tenant = ? and cloudlet = ? and created = ?");
+                args.Add(ids.Tenant);
+                args.Add(ids.Cloudlet);
+                args.Add(Guid.Parse(id.ToString()));
+
+                var result = new List<LogItem>();
+                var row = await Utilities.SingleAsync(
+                    session,
+                    builder.ToString(),
+                    args.ToArray());
+                return new LogItem
+                {
+                    Id = row.GetValue<Guid>("id"),
+                    Created = row.GetValue<DateTime>("created"),
+                    Type = row.GetValue<string>("type"),
+                    Content = row.GetValue<string>("content"),
+                    Exception = row.GetValue<string>("exception"),
+                };
+            }
         }
 
         /// <inheritdoc/>
-        public Task<long> CountAsync(string query = null)
+        public async Task<long> CountAsync(string query = null)
         {
-            throw new NotImplementedException();
+            if (!string.IsNullOrEmpty(query) && (query.Contains("%") || query.Contains("?")))
+                throw new HyperlambdaException($"You cannot filter log items with wild cards");
+
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var builder = new StringBuilder();
+                var ids = Utilities.Resolve(_rootResolver);
+                List<object> args = new List<object>();
+                builder.Append("select count(*) from log_entries");
+                builder.Append(" where tenant = ? and cloudlet = ?");
+                args.Add(ids.Tenant);
+                args.Add(ids.Cloudlet);
+                if (!string.IsNullOrEmpty(query))
+                {
+                    builder.Append(" and content like ?");
+                    args.Add(query + "%");
+                }
+
+                builder.Append(" allow filtering");
+
+                var result = new List<LogItem>();
+                var rs = await Utilities.SingleAsync(
+                    session,
+                    builder.ToString(),
+                    args.ToArray());
+                return rs.GetValue<long>(0);
+            }
         }
 
         #endregion
