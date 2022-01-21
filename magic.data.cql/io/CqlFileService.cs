@@ -135,6 +135,43 @@ namespace magic.data.cql.io
         }
 
         /// <inheritdoc />
+        public List<string> ListFilesRecursively(string folder, string extension = null)
+        {
+            return ListFilesAsync(folder, extension).GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc />
+        public async Task<List<string>> ListFilesRecursivelyAsync(string folder, string extension = null)
+        {
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var relPath = Utilities.Relativize(_rootResolver, folder);
+                if (!await CqlFolderService.FolderExists(session, _rootResolver, relPath))
+                    throw new HyperlambdaException($"Folder '{relPath}' doesn't exist");
+
+                var ids = Utilities.Resolve(_rootResolver);
+                using (var rs = await Utilities.RecordsAsync(
+                    session,
+                    "select folder, filename from files where tenant = ? and cloudlet = ? and folder like ?",
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    relPath + "%"))
+                {
+                    var result = new List<string>();
+                    foreach (var idx in rs)
+                    {
+                        var idxFolder = idx.GetValue<string>("folder");
+                        var idxFile = idx.GetValue<string>("filename");
+                        if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
+                            result.Add(_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFile);
+                    }
+                    result.Sort();
+                    return result;
+                }
+            }
+        }
+
+        /// <inheritdoc />
         public string Load(string path)
         {
             return LoadAsync(path).GetAwaiter().GetResult();
