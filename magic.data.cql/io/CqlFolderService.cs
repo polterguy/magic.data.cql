@@ -151,6 +151,39 @@ namespace magic.data.cql.io
         }
 
         /// <inheritdoc />
+        public List<string> ListFoldersRecursively(string folder)
+        {
+            return ListFoldersAsync(folder).GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc />
+        public async Task<List<string>> ListFoldersRecursivelyAsync(string folder)
+        {
+            var relativeFolder = Utilities.Relativize(_rootResolver, folder);
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var ids = Utilities.Resolve(_rootResolver);
+                using (var rs = await Utilities.RecordsAsync(
+                    session,
+                    "select folder from files where tenant = ? and cloudlet = ? and folder like ? and filename = ''",
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    relativeFolder + "%"))
+                {
+                    var result = new List<string>();
+                    foreach (var idx in rs.GetRows())
+                    {
+                        var idxFolder = idx.GetValue<string>("folder");
+                        if (idxFolder != relativeFolder)
+                            result.Add(_rootResolver.RootFolder.TrimEnd('/') + idxFolder);
+                    }
+                    result.Sort();
+                    return result;
+                }
+            }
+        }
+
+        /// <inheritdoc />
         public void Move(string source, string destination)
         {
             MoveAsync(source, destination).GetAwaiter().GetResult();
