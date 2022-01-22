@@ -157,7 +157,7 @@ namespace magic.data.cql.logging
                 {
                     result.Add(new LogItem
                     {
-                        Id = idx.GetValue<Guid>("id"),
+                        Id = Convert.ToString(idx.GetValue<Guid>("id")),
                         Created = idx.GetValue<DateTime>("created"),
                         Type = idx.GetValue<string>("type"),
                         Content = idx.GetValue<string>("content"),
@@ -189,7 +189,7 @@ namespace magic.data.cql.logging
                     args.ToArray());
                 return new LogItem
                 {
-                    Id = row.GetValue<Guid>("id"),
+                    Id = Convert.ToString(row.GetValue<Guid>("id")),
                     Created = row.GetValue<DateTime>("created"),
                     Type = row.GetValue<string>("type"),
                     Content = row.GetValue<string>("content"),
