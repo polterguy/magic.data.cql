@@ -3,6 +3,7 @@
  */
 
 using System;
+using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
@@ -182,12 +183,12 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
-                return await GetFileContent(session, _rootResolver, path);
+                return Encoding.UTF8.GetString(await GetFileContent(session, _rootResolver, path));
             }
         }
 
         /// <inheritdoc/>
-        public IEnumerable<(string Filename, string Content)> LoadRecursively(
+        public IEnumerable<(string Filename, byte[] Content)> LoadRecursively(
             string folder,
             string extension)
         {
@@ -195,7 +196,7 @@ namespace magic.data.cql.io
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<(string Filename, string Content)>> LoadRecursivelyAsync(
+        public async Task<IEnumerable<(string Filename, byte[] Content)>> LoadRecursivelyAsync(
             string folder,
             string extension)
         {
@@ -213,12 +214,12 @@ namespace magic.data.cql.io
                     ids.Cloudlet,
                     relPath + "%"))
                 {
-                    var result = new List<(string Filename, string Content)>();
+                    var result = new List<(string Filename, byte[] Content)>();
                     foreach (var idx in rs)
                     {
                         var idxFolder = idx.GetValue<string>("folder");
                         var idxFile = idx.GetValue<string>("filename");
-                        var idxContent = idx.GetValue<string>("content");
+                        var idxContent = idx.GetValue<byte[]>("content");
                         if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
                             result.Add((_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFile, idxContent));
                     }
@@ -290,7 +291,7 @@ namespace magic.data.cql.io
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relDest.Folder))
                     throw new HyperlambdaException($"Destination folder '{relDest.Folder}' doesn't exist");
 
-                await SaveAsync(session, _rootResolver, path, content);
+                await SaveAsync(session, _rootResolver, path, Encoding.UTF8.GetBytes(content));
             }
         }
 
@@ -305,7 +306,7 @@ namespace magic.data.cql.io
         /*
          * Returns the content of the specified file to caller.
          */
-        internal static async Task<string> GetFileContent(
+        internal static async Task<byte[]> GetFileContent(
             ISession session,
             IRootResolver rootResolver,
             string path)
@@ -319,12 +320,8 @@ namespace magic.data.cql.io
                 ids.Cloudlet,
                 rel.Folder,
                 rel.File);
-            return rs?.GetValue<string>("content") ?? throw new HyperlambdaException($"File '{rel.File}' doesn't exist");
+            return rs?.GetValue<byte[]>("content") ?? throw new HyperlambdaException($"File '{rel.File}' doesn't exist");
         }
-
-        #endregion
-
-        #region [ -- Private helper methods -- ]
 
         /*
          * Common helper method to save file on specified session given specified client and cloudlet ID.
@@ -333,7 +330,7 @@ namespace magic.data.cql.io
             ISession session,
             IRootResolver rootResolver,
             string path,
-            string content)
+            byte[] content)
         {
             var relPath = Utilities.BreakDownFileName(rootResolver, path);
             var ids = Utilities.Resolve(rootResolver);

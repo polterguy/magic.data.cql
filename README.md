@@ -94,7 +94,7 @@ create table if not exists files(
    cloudlet text,
    folder text,
    filename text,
-   content text,
+   content blob,
    primary key((tenant, cloudlet), folder, filename));
 ```
 
@@ -143,7 +143,7 @@ cql.connect:[generic|magic]
    /*
     * Inserting root folder.
     */
-   cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, '/files/', '', '')"
+   cql.execute:"insert into files (tenant, cloudlet, folder, filename) values (:tenant, :cloudlet, '/files/', '')"
       tenant:x:@.tenant
       cloudlet:x:@.cloudlet
 
@@ -151,11 +151,13 @@ cql.connect:[generic|magic]
     * Inserting appsettings.json and its folder.
     */
    config.load
+   convert:x:-
+      type:bytes
    cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, '/config/', 'appsettings.json', :config)"
       tenant:x:@.tenant
       cloudlet:x:@.cloudlet
-      config:x:@config.load
-   cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, '/config/', '', '')"
+      config:x:@convert
+   cql.execute:"insert into files (tenant, cloudlet, folder, filename) values (:tenant, :cloudlet, '/config/', '')"
       tenant:x:@.tenant
       cloudlet:x:@.cloudlet
 
@@ -170,7 +172,7 @@ cql.connect:[generic|magic]
          .:/files
          get-value:x:@.dp/#
       
-      cql.execute:"insert into files (tenant, cloudlet, folder, filename, content) values (:tenant, :cloudlet, :folder, '', '')"
+      cql.execute:"insert into files (tenant, cloudlet, folder, filename) values (:tenant, :cloudlet, :folder, '')"
          tenant:x:@.tenant
          cloudlet:x:@.cloudlet
          folder:x:@strings.concat
@@ -182,7 +184,7 @@ cql.connect:[generic|magic]
       display-hidden:true
    for-each:x:-/*
 
-      io.file.load:x:@.dp/#
+      io.file.load.binary:x:@.dp/#
    
       strings.split:x:@.dp/#
          .:/
@@ -203,7 +205,7 @@ cql.connect:[generic|magic]
          cloudlet:x:@.cloudlet
          folder:x:@strings.replace
          filename:x:@.filename
-         content:x:@io.file.load
+         content:x:@io.file.load.binary
 
 remove-nodes:x:../**/io.folder.list-recursively/*
 remove-nodes:x:../**/io.file.list-recursively/*
