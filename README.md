@@ -75,7 +75,7 @@ create table if not exists files(
 ```
 
 To use the alternative CQL based log implementation you'll have to create your _"magic"_ keyspace and its
-_"log"_ table as follows.
+_"log_entries"_ table as follows.
 
 ```cql
 create keyspace if not exists magic with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 5 };
