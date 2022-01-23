@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using magic.node.contracts;
-using magic.node.extensions;
 using magic.data.cql.helpers;
 using magic.signals.contracts;
 using magic.lambda.logging.contracts;
@@ -139,10 +138,11 @@ namespace magic.data.cql.logging
                     builder.ToString(),
                     args.ToArray()))
                 {
+                    var dt = idx.GetValue<DateTime>("created");
                     result.Add(new LogItem
                     {
                         Id = Convert.ToString(idx.GetValue<Guid>("id")),
-                        Created = idx.GetValue<DateTime>("created"),
+                        Created = new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second, DateTimeKind.Utc),
                         Type = idx.GetValue<string>("type"),
                         Content = idx.GetValue<string>("content"),
                         Exception = idx.GetValue<string>("exception"),
@@ -193,10 +193,11 @@ namespace magic.data.cql.logging
                     session,
                     builder.ToString(),
                     args.ToArray());
+                var dt = row.GetValue<DateTime>("created");
                 return new LogItem
                 {
                     Id = Convert.ToString(row.GetValue<Guid>("id")),
-                    Created = row.GetValue<DateTime>("created"),
+                    Created = new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second, DateTimeKind.Utc),
                     Type = row.GetValue<string>("type"),
                     Content = row.GetValue<string>("content"),
                     Exception = row.GetValue<string>("exception"),
