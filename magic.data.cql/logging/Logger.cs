@@ -165,7 +165,6 @@ namespace magic.data.cql.logging
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
 
-                var result = new List<LogItem>();
                 var rs = await Utilities.SingleAsync(
                     session,
                     builder.ToString(),
