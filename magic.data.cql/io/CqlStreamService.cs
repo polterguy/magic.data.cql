@@ -34,7 +34,9 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<Stream> OpenFileAsync(string path)
         {
-            return new MemoryStream(Encoding.UTF8.GetBytes(await _fileService.LoadAsync(path)));
+            var result = new MemoryStream(await _fileService.LoadBinaryAsync(path));
+            result.Position = 0;
+            return result;
         }
 
         /// <inheritdoc />

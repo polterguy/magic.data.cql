@@ -236,7 +236,7 @@ namespace magic.data.cql.io
                 {
                     var idxFolder = idx.GetValue<string>("folder");
                     var idxFilename = idx.GetValue<string>("filename");
-                    var idxContent = idx.GetValue<string>("content");
+                    var idxContent = idx.GetValue<byte[]>("content");
                     if (isMove)
                     {
                         await Utilities.ExecuteAsync(
