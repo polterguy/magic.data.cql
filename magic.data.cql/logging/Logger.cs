@@ -115,11 +115,8 @@ namespace magic.data.cql.logging
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<LogItem>> QueryAsync(int max, object fromId, string query = null)
+        public async Task<IEnumerable<LogItem>> QueryAsync(int max, object fromId)
         {
-            if (!string.IsNullOrEmpty(query) && (query.Contains("%") || query.Contains("?")))
-                throw new HyperlambdaException($"You cannot filter log items with wild cards");
-
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var builder = new StringBuilder();
@@ -129,25 +126,12 @@ namespace magic.data.cql.logging
                 builder.Append(" where tenant = ? and cloudlet = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
-                if (fromId != null || !string.IsNullOrEmpty(query))
+                if (fromId != null)
                 {
-                    if (fromId != null)
-                    {
-                        builder.Append($" and created < ?");
-                        args.Add(Guid.Parse(fromId.ToString()));
-                        if (!string.IsNullOrEmpty(query))
-                        {
-                            builder.Append(" and content like ?");
-                            args.Add(query + "%");
-                        }
-                    }
-                    else
-                    {
-                        builder.Append(" and content like ?");
-                        args.Add(query + "%");
-                    }
+                    builder.Append($" and created < ?");
+                    args.Add(Guid.Parse(fromId.ToString()));
                 }
-                builder.Append($" order by created desc limit {max} allow filtering");
+                builder.Append($" order by created desc limit {max}");
 
                 var result = new List<LogItem>();
                 foreach (var idx in await Utilities.RecordsAsync(
@@ -165,6 +149,28 @@ namespace magic.data.cql.logging
                     });
                 }
                 return result;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<long> CountAsync()
+        {
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var builder = new StringBuilder();
+                var ids = Utilities.Resolve(_rootResolver);
+                List<object> args = new List<object>();
+                builder.Append("select count(*) from log_entries");
+                builder.Append(" where tenant = ? and cloudlet = ?");
+                args.Add(ids.Tenant);
+                args.Add(ids.Cloudlet);
+
+                var result = new List<LogItem>();
+                var rs = await Utilities.SingleAsync(
+                    session,
+                    builder.ToString(),
+                    args.ToArray());
+                return rs.GetValue<long>(0);
             }
         }
 
@@ -195,38 +201,6 @@ namespace magic.data.cql.logging
                     Content = row.GetValue<string>("content"),
                     Exception = row.GetValue<string>("exception"),
                 };
-            }
-        }
-
-        /// <inheritdoc/>
-        public async Task<long> CountAsync(string query = null)
-        {
-            if (!string.IsNullOrEmpty(query) && (query.Contains("%") || query.Contains("?")))
-                throw new HyperlambdaException($"You cannot filter log items with wild cards");
-
-            using (var session = Utilities.CreateSession(_configuration))
-            {
-                var builder = new StringBuilder();
-                var ids = Utilities.Resolve(_rootResolver);
-                List<object> args = new List<object>();
-                builder.Append("select count(*) from log_entries");
-                builder.Append(" where tenant = ? and cloudlet = ?");
-                args.Add(ids.Tenant);
-                args.Add(ids.Cloudlet);
-                if (!string.IsNullOrEmpty(query))
-                {
-                    builder.Append(" and content like ?");
-                    args.Add(query + "%");
-                }
-
-                builder.Append(" allow filtering");
-
-                var result = new List<LogItem>();
-                var rs = await Utilities.SingleAsync(
-                    session,
-                    builder.ToString(),
-                    args.ToArray());
-                return rs.GetValue<long>(0);
             }
         }
 

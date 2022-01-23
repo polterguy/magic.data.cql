@@ -85,7 +85,7 @@ To use the alternative CQL based file storage system you'll have to create your 
 _"files"_ table as follows.
 
 ```sql
-create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
+create keyspace if not exists magic with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 5 };
 
 use magic;
 
@@ -102,7 +102,7 @@ To use the alternative CQL based log implementation you'll have to create your _
 _"log"_ table as follows.
 
 ```sql
-create keyspace if not exists magic with replication = { 'class': 'SimpleStrategy', 'replication_factor': 3 };
+create keyspace if not exists magic with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 5 };
 
 use magic;
 
@@ -115,8 +115,11 @@ create table if not exists log_entries(
    exception text,
    primary key((tenant, cloudlet), created)) with clustering order by (created desc);
 
-create index if not exists log_entries_content_idx on magic.log_entries ((tenant, cloudlet), content);
+alter table log_entries with default_time_to_live = 604800;
 ```
+
+**Notice** - The above setting for TTL implies log items will be automatically deleted after 30 days,
+since 2.5 million seconds implies 30 days.
 
 ## Adding existing files into keyspace
 
