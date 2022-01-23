@@ -1,17 +1,18 @@
 
-# CQL IO and logging data adapters for Magic and Hyperlambda
+# CQL IO and logging adapters for Hyperlambda
 
-This data adapter contains alternative file system services, implementing `IFileService`, `IFolderService`, and
-`IStreamService`, allowing you to use it interchangeable as a _"virtual file system"_ for cases where you want
+This data adapter contains alternative NoSQL file system services, implementing `IFileService`, `IFolderService`, and
+`IStreamService`, allowing you to use as an interchangeable _"virtual file system"_ for cases where you want
 to have 100% stateless magic instances, which is important if you're using Magic in a Kubernetes cluster or
 something similar, load balancing invocations, virtually resolving files and folders towards a virtual file system.
 If you take this path you'll have to configure your _"appsettings.json"_ file such as illustrated further
-down in this document. The project also contains a log implementation service you can use that will create
-log entries in a CQL based storage of your choice. See below for details about how to configure this.
+down in this document. The project also contains an `ILogger` implementation service you can use that will create
+log entries in a NoSQL based storage of your choice. See below for details about how to configure this.
 
 ## Configuration
 
-The primary configuration for the project to apply for your _"appsettings.json"_ file can be found below.
+The primary configuration for the project to apply for your _"appsettings.json"_ file can be found below. Notice,
+the IO and log services requires you to use `generic` as your cluster name, and you cannot change this.
 
 ```json
 {
@@ -41,10 +42,8 @@ as follows to your _"appsettings.json"_ file.
 }
 ```
 
-If you want to use a CQL based virtual file system, you'll have to create a keyspace called _"magic"_
-within your _"generic"_ cluster connection, with a table named _"files"_. Below is an example of how
-you could achieve this using CQL. If you want to use a CQL based log implementation, you'll have to
-configure Magic to use a different log implementation such as follows.
+If you want to use a CQL based log implementation, you'll have to configure Magic to use the NoSQL
+`ILogger` service such as follows.
 
 ```json
 {
@@ -56,10 +55,12 @@ configure Magic to use a different log implementation such as follows.
 }
 ```
 
+## Schema
+
 To use the alternative CQL based file storage system you'll have to create your _"magic"_ keyspace and its 
 _"files"_ table as follows.
 
-```sql
+```cql
 create keyspace if not exists magic with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 5 };
 
 use magic;
@@ -76,7 +77,7 @@ create table if not exists files(
 To use the alternative CQL based log implementation you'll have to create your _"magic"_ keyspace and its
 _"log"_ table as follows.
 
-```sql
+```cql
 create keyspace if not exists magic with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 5 };
 
 use magic;
