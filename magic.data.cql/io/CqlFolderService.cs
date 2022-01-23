@@ -89,7 +89,7 @@ namespace magic.data.cql.io
                         "delete from files where tenant = ? and cloudlet = ? and folder = ?",
                         ids.Tenant,
                         ids.Cloudlet,
-                        relPath);
+                        idx.GetValue<string>("folder"));
                 }
             }
         }
