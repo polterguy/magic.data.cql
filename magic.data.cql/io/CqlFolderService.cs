@@ -105,13 +105,7 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
-                var ids = Utilities.Resolve(_rootResolver);
-                return await Utilities.SingleAsync(
-                    session,
-                    "select folder from files where tenant = ? and cloudlet = ? and folder = ? and filename = ''",
-                    ids.Tenant,
-                    ids.Cloudlet,
-                    Utilities.Relativize(_rootResolver, path)) != null;
+                return await FolderExists(session, _rootResolver, Utilities.Relativize(_rootResolver, path));
             }
         }
 
@@ -124,7 +118,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFoldersAsync(string folder)
         {
-            var relativeFolder = Utilities.Relativize(_rootResolver, folder);
+            var relPath = Utilities.Relativize(_rootResolver, folder);
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var ids = Utilities.Resolve(_rootResolver);
@@ -133,14 +127,14 @@ namespace magic.data.cql.io
                     "select folder from files where tenant = ? and cloudlet = ? and folder like ? and filename = ''",
                     ids.Tenant,
                     ids.Cloudlet,
-                    relativeFolder + "%"))
+                    relPath + "%"))
                 {
                     var result = new List<string>();
                     foreach (var idx in rs.GetRows())
                     {
                         var idxFolder = idx.GetValue<string>("folder").TrimEnd('/');
-                        if (idxFolder.StartsWith(relativeFolder) && idxFolder.LastIndexOf("/") == relativeFolder.LastIndexOf("/"))
-                            result.Add(_rootResolver.RootFolder.TrimEnd('/') + idxFolder + "/");
+                        if (idxFolder.StartsWith(relPath) && idxFolder.LastIndexOf("/") == relPath.LastIndexOf("/"))
+                            result.Add(_rootResolver.RootFolder + idxFolder.Substring(1) + "/");
                     }
                     result.Sort();
                     return result;
@@ -157,7 +151,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFoldersRecursivelyAsync(string folder)
         {
-            var relativeFolder = Utilities.Relativize(_rootResolver, folder);
+            var relPath = Utilities.Relativize(_rootResolver, folder);
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var ids = Utilities.Resolve(_rootResolver);
@@ -166,14 +160,14 @@ namespace magic.data.cql.io
                     "select folder from files where tenant = ? and cloudlet = ? and folder like ? and filename = ''",
                     ids.Tenant,
                     ids.Cloudlet,
-                    relativeFolder + "%"))
+                    relPath + "%"))
                 {
                     var result = new List<string>();
                     foreach (var idx in rs.GetRows())
                     {
                         var idxFolder = idx.GetValue<string>("folder");
-                        if (idxFolder != relativeFolder)
-                            result.Add(_rootResolver.RootFolder.TrimEnd('/') + idxFolder);
+                        if (idxFolder != relPath)
+                            result.Add(_rootResolver.RootFolder + idxFolder.Substring(1));
                     }
                     result.Sort();
                     return result;

@@ -2,7 +2,6 @@
  * Magic Cloud, copyright Aista, Ltd. See the attached LICENSE file for details.
  */
 
-using System;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -44,7 +43,6 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
-                var relDest = Utilities.Relativize(_rootResolver, destination);
                 await SaveAsync(
                     session,
                     _rootResolver,
@@ -124,7 +122,7 @@ namespace magic.data.cql.io
                     foreach (var idx in rs)
                     {
                         var idxFilename = idx.GetValue<string>("filename");
-                        if (idxFilename != "" && (extension == null || idxFilename.EndsWith(extension)))
+                        if (!string.IsNullOrEmpty(idxFilename) && (extension == null || idxFilename.EndsWith(extension)))
                             result.Add(_rootResolver.RootFolder + relPath.Substring(1) + idxFilename);
                     }
                     result.Sort();
@@ -158,8 +156,8 @@ namespace magic.data.cql.io
                     {
                         var idxFolder = idx.GetValue<string>("folder");
                         var idxFilename = idx.GetValue<string>("filename");
-                        if (idxFilename != "" && (extension == null || idxFilename.EndsWith(extension)))
-                            result.Add(_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFilename);
+                        if (!string.IsNullOrEmpty(idxFilename) && (extension == null || idxFilename.EndsWith(extension)))
+                            result.Add(_rootResolver.RootFolder + idxFolder.Substring(1) + idxFilename);
                     }
                     result.Sort();
                     return result;
@@ -212,8 +210,8 @@ namespace magic.data.cql.io
                         var idxFolder = idx.GetValue<string>("folder");
                         var idxFilename = idx.GetValue<string>("filename");
                         var idxContent = idx.GetValue<byte[]>("content");
-                        if (idxFilename != "" && (extension == null || idxFilename.EndsWith(extension)))
-                            result.Add((_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFilename, idxContent));
+                        if (!string.IsNullOrEmpty(idxFilename) && (extension == null || idxFilename.EndsWith(extension)))
+                            result.Add((_rootResolver.RootFolder + idxFolder.Substring(1) + idxFilename, idxContent));
                     }
                     result.Sort((lhs, rhs) => lhs.Filename.CompareTo(rhs.Filename));
                     return result;
@@ -247,7 +245,6 @@ namespace magic.data.cql.io
         {
             using (var session = Utilities.CreateSession(_configuration))
             {
-                var relDest = Utilities.BreakDownFileName(_rootResolver, destination);
                 await SaveAsync(
                     session,
                     _rootResolver,
