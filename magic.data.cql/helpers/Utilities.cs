@@ -8,9 +8,7 @@ using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Cassandra;
-using magic.node;
 using magic.node.contracts;
-using magic.node.extensions;
 
 namespace magic.data.cql.helpers
 {
@@ -89,25 +87,6 @@ namespace magic.data.cql.helpers
         {
             var connection = GetDefaultConnection(configuration);
             return CreateSession(connection.Cluster, connection.KeySpace);
-        }
-
-        /*
-         * Returns connection settings for Cluster and keyspace to caller given the  specified node.
-         */
-        internal static (string Cluster, string KeySpace) GetConnectionSettings(IConfiguration configuration, Node node)
-        {
-            var value = node.GetEx<string>();
-            if (value.StartsWith("[") && value.EndsWith("]"))
-            {
-                var splits = value.Substring(1, value.Length - 2).Split('|');
-                if (splits.Count() != 2)
-                    throw new HyperlambdaException($"I don't understand how to connect to a CQL database using '{value}'");
-                return (configuration[$"magic:cql:{splits[0]}:host"], splits[1]);
-            }
-            else
-            {
-                return ("generic", value);
-            }
         }
 
         /*

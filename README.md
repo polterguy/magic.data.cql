@@ -1,35 +1,10 @@
 
-# CQL data adapters for Magic and Hyperlambda
+# CQL IO and logging data adapters for Magic and Hyperlambda
 
-This project provides Magic and Hyperlambda with CQL data adapters, allowing you to perform CRUD operations towards
-for instance Cassandra or ScyllaDB. In addition the project provides alternative file/folder storage for Magic,
-storing files and folders in a CQL based database, such as Cassandra or ScyllaDB.
-
-## Slots
-
-The project contains the following slots.
-
-* __[cql.connect]__ - Creates a session towards a CQL cluster
-* __[cql.execute]__ - Executes some CQL statement towards a previously opened session and returns the result to caller
-
-The basic idea of the slots are to allow for this such as follows.
-
-```
-cql.connect:[generic|magic]
-   cql.select:"select * from files where cloudlet = 'foo/bar' and folder = '/etc/' and filename like 'howdy%'"
-```
-
-Where the `generic` parts above is a reference to a cluster, you'll have to configure in your _"appsettings.json"_,
-while the `magic` parts above is a keyspace within that cluster. In such a regard the slots resembles the generic
-RDBMS slots in usage, except of course it open a connection towards a NoSQL database such as Cassandra or ScyllaDB,
-and returns the result of executing your SQL towards a keyspace within that cluster.
-
-## Alternative system services
-
-The adapter also contains alternative file system services, implementing `IFileService`, `IFolderService`, and
+This data adapter contains alternative file system services, implementing `IFileService`, `IFolderService`, and
 `IStreamService`, allowing you to use it interchangeable as a _"virtual file system"_ for cases where you want
 to have 100% stateless magic instances, which is important if you're using Magic in a Kubernetes cluster or
-something similar, load balancing invocations, virtually resolving towards your virtual file system.
+something similar, load balancing invocations, virtually resolving files and folders towards a virtual file system.
 If you take this path you'll have to configure your _"appsettings.json"_ file such as illustrated further
 down in this document. The project also contains a log implementation service you can use that will create
 log entries in a CQL based storage of your choice. See below for details about how to configure this.
@@ -118,8 +93,8 @@ create table if not exists log_entries(
 alter table log_entries with default_time_to_live = 604800;
 ```
 
-**Notice** - The above setting for TTL implies log items will be automatically deleted after 30 days,
-since 2.5 million seconds implies 30 days.
+**Notice** - The above setting for TTL implies log items will be automatically deleted after 7 days,
+since 604,800 seconds implies 7 days. Depending upon your needs you might want to increase this setting.
 
 ## Adding existing files into keyspace
 
