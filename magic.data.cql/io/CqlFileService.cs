@@ -45,10 +45,11 @@ namespace magic.data.cql.io
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var relDest = Utilities.Relativize(_rootResolver, destination);
-                if (!await CqlFolderService.FolderExists(session, _rootResolver, relDest))
-                    throw new HyperlambdaException($"Destination folder '{relDest}' doesn't exist");
-
-                await SaveAsync(session, _rootResolver, destination, await GetFileContent(session, _rootResolver, source));
+                await SaveAsync(
+                    session,
+                    _rootResolver,
+                    destination,
+                    await GetFileContent(session, _rootResolver, source));
             }
         }
 
@@ -111,9 +112,6 @@ namespace magic.data.cql.io
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var relPath = Utilities.Relativize(_rootResolver, folder);
-                if (!await CqlFolderService.FolderExists(session, _rootResolver, relPath))
-                    throw new HyperlambdaException($"Folder '{relPath}' doesn't exist");
-
                 var ids = Utilities.Resolve(_rootResolver);
                 using (var rs = await Utilities.RecordsAsync(
                     session,
@@ -125,9 +123,9 @@ namespace magic.data.cql.io
                     var result = new List<string>();
                     foreach (var idx in rs)
                     {
-                        var idxFile = idx.GetValue<string>("filename");
-                        if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
-                            result.Add(_rootResolver.RootFolder + relPath.Substring(1) + idxFile);
+                        var idxFilename = idx.GetValue<string>("filename");
+                        if (idxFilename != "" && (extension == null || idxFilename.EndsWith(extension)))
+                            result.Add(_rootResolver.RootFolder + relPath.Substring(1) + idxFilename);
                     }
                     result.Sort();
                     return result;
@@ -147,9 +145,6 @@ namespace magic.data.cql.io
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var relPath = Utilities.Relativize(_rootResolver, folder);
-                if (!await CqlFolderService.FolderExists(session, _rootResolver, relPath))
-                    throw new HyperlambdaException($"Folder '{relPath}' doesn't exist");
-
                 var ids = Utilities.Resolve(_rootResolver);
                 using (var rs = await Utilities.RecordsAsync(
                     session,
@@ -162,9 +157,9 @@ namespace magic.data.cql.io
                     foreach (var idx in rs)
                     {
                         var idxFolder = idx.GetValue<string>("folder");
-                        var idxFile = idx.GetValue<string>("filename");
-                        if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
-                            result.Add(_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFile);
+                        var idxFilename = idx.GetValue<string>("filename");
+                        if (idxFilename != "" && (extension == null || idxFilename.EndsWith(extension)))
+                            result.Add(_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFilename);
                     }
                     result.Sort();
                     return result;
@@ -203,9 +198,6 @@ namespace magic.data.cql.io
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var relPath = Utilities.Relativize(_rootResolver, folder);
-                if (!await CqlFolderService.FolderExists(session, _rootResolver, relPath))
-                    throw new HyperlambdaException($"Folder '{relPath}' doesn't exist");
-
                 var ids = Utilities.Resolve(_rootResolver);
                 using (var rs = await Utilities.RecordsAsync(
                     session,
@@ -218,10 +210,10 @@ namespace magic.data.cql.io
                     foreach (var idx in rs)
                     {
                         var idxFolder = idx.GetValue<string>("folder");
-                        var idxFile = idx.GetValue<string>("filename");
+                        var idxFilename = idx.GetValue<string>("filename");
                         var idxContent = idx.GetValue<byte[]>("content");
-                        if (idxFile != "" && (extension == null || idxFile.EndsWith(extension)))
-                            result.Add((_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFile, idxContent));
+                        if (idxFilename != "" && (extension == null || idxFilename.EndsWith(extension)))
+                            result.Add((_rootResolver.RootFolder.TrimEnd('/') + idxFolder + idxFilename, idxContent));
                     }
                     result.Sort((lhs, rhs) => lhs.Filename.CompareTo(rhs.Filename));
                     return result;
@@ -238,7 +230,10 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<byte[]> LoadBinaryAsync(string path)
         {
-            return Convert.FromBase64String(await LoadAsync(path));
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                return await GetFileContent(session, _rootResolver, path);
+            }
         }
 
         /// <inheritdoc />
@@ -253,11 +248,11 @@ namespace magic.data.cql.io
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var relDest = Utilities.BreakDownFileName(_rootResolver, destination);
-                if (!await CqlFolderService.FolderExists(session, _rootResolver, relDest.Folder))
-                    throw new HyperlambdaException($"Destination folder '{relDest.Folder}' doesn't exist");
-
-                await SaveAsync(session, _rootResolver, destination, await GetFileContent(session, _rootResolver, source));
-
+                await SaveAsync(
+                    session,
+                    _rootResolver,
+                    destination,
+                    await GetFileContent(session, _rootResolver, source));
                 var ids = Utilities.Resolve(_rootResolver);
                 var relSrc = Utilities.BreakDownFileName(_rootResolver, source);
                 await Utilities.ExecuteAsync(
@@ -285,20 +280,24 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task SaveAsync(string path, string content)
         {
+            await SaveAsync(path, Encoding.UTF8.GetBytes(content));
+        }
+
+        /// <inheritdoc />
+        public async Task SaveAsync(string path, byte[] content)
+        {
             using (var session = Utilities.CreateSession(_configuration))
             {
                 var relDest = Utilities.BreakDownFileName(_rootResolver, path);
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relDest.Folder))
                     throw new HyperlambdaException($"Destination folder '{relDest.Folder}' doesn't exist");
 
-                await SaveAsync(session, _rootResolver, path, Encoding.UTF8.GetBytes(content));
+                await SaveAsync(
+                    session,
+                    _rootResolver,
+                    path,
+                    content);
             }
-        }
-
-        /// <inheritdoc />
-        public async Task SaveAsync(string path, byte[] content)
-        {
-            await SaveAsync(path, Convert.ToBase64String(content));
         }
 
         #region [ -- Internal helper methods -- ]
