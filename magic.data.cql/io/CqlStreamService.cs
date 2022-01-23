@@ -3,9 +3,9 @@
  */
 
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using magic.node.contracts;
+using magic.node.extensions;
 
 namespace magic.data.cql.io
 {
@@ -34,9 +34,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<Stream> OpenFileAsync(string path)
         {
-            var result = new MemoryStream(await _fileService.LoadBinaryAsync(path));
-            result.Position = 0;
-            return result;
+            return new MemoryStream(await _fileService.LoadBinaryAsync(path));
         }
 
         /// <inheritdoc />
@@ -48,11 +46,19 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task SaveFileAsync(Stream stream, string path, bool overwrite)
         {
-            var reader = new StreamReader(stream);
-            var content = await reader.ReadToEndAsync();
-            if (await _fileService.ExistsAsync(path))
-                await _fileService.DeleteAsync(path);
-            await _fileService.SaveAsync(path, content);
+            using (var memory = new MemoryStream())
+            {
+                await stream.CopyToAsync(memory);
+                memory.Position = 0;
+                if (await _fileService.ExistsAsync(path))
+                {
+                    if (overwrite)
+                        await _fileService.DeleteAsync(path);
+                    else
+                        throw new HyperlambdaException("File already exists and overwrite argument was false");
+                }
+                await _fileService.SaveAsync(path, memory.ToArray());
+            }
         }
     }
 }
