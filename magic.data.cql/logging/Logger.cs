@@ -186,10 +186,35 @@ namespace magic.data.cql.logging
                 var result = new List<(string Type, long Count)>();
                 foreach (var idx in await Utilities.RecordsAsync(
                     session,
-                    "select count(*) as count, type from log_entries where tenant = :tenant and cloudlet = :cloudlet group by type",
+                    "select type, count(*) as count from log_entries_type_view where tenant = ? and cloudlet = ? group by tenant, cloudlet, type",
                     args.ToArray()))
                 {
                     var type = idx.GetValue<string>("type");
+                    var count = Convert.ToInt64(idx.GetValue<object>("count"));
+                    result.Add((type, count));
+                }
+                return result;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<(string When, long Count)>> Timeshift(string content)
+        {
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var ids = Utilities.Resolve(_rootResolver);
+                List<object> args = new List<object>();
+                args.Add(ids.Tenant);
+                args.Add(ids.Cloudlet);
+                args.Add(content);
+
+                var result = new List<(string When, long Count)>();
+                foreach (var idx in await Utilities.RecordsAsync(
+                    session,
+                    "select day, count(*) as count from log_entries_day_view where tenant = ? and cloudlet = ? and content = ? group by tenant, cloudlet, day allow filtering",
+                    args.ToArray()))
+                {
+                    var type = Convert.ToString(idx.GetValue<object>("day"));
                     var count = Convert.ToInt64(idx.GetValue<object>("count"));
                     result.Add((type, count));
                 }
@@ -267,10 +292,10 @@ namespace magic.data.cql.logging
                 using (var session = Utilities.CreateSession(_configuration))
                 {
                     var builder = new StringBuilder();
-                    builder.Append("insert into log_entries (tenant, cloudlet, created, type, content");
+                    builder.Append("insert into log_entries (tenant, cloudlet, created, day, type, content");
                     if (error != null || stackTrace != null)
                         builder.Append(", exception");
-                    builder.Append(") values (:tenant, :cloudlet, now(), ?, ?");
+                    builder.Append(") values (:tenant, :cloudlet, now(), currentDate(), ?, ?");
                     if (error != null || stackTrace != null)
                         builder.Append(", ?");
                     builder.Append(")");
