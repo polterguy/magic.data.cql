@@ -92,6 +92,10 @@ create table if not exists log_entries(
    primary key((tenant, cloudlet), created)) with clustering order by (created desc);
 
 alter table log_entries with default_time_to_live = 604800;
+
+create index if not exists log_entries_type_idx on log_entries ((tenant, cloudlet), type);
+
+create index if not exists log_entries_content_idx on log_entries ((tenant, cloudlet), content);
 ```
 
 **Notice** - The above setting for TTL implies log items will be automatically deleted after 7 days,

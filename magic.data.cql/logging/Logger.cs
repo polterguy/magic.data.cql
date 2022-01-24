@@ -174,6 +174,30 @@ namespace magic.data.cql.logging
         }
 
         /// <inheritdoc/>
+        public async Task<IEnumerable<(string Type, long Count)>> Types()
+        {
+            using (var session = Utilities.CreateSession(_configuration))
+            {
+                var ids = Utilities.Resolve(_rootResolver);
+                List<object> args = new List<object>();
+                args.Add(ids.Tenant);
+                args.Add(ids.Cloudlet);
+
+                var result = new List<(string Type, long Count)>();
+                foreach (var idx in await Utilities.RecordsAsync(
+                    session,
+                    "select count(*) as count, type from log_entries where tenant = :tenant and cloudlet = :cloudlet group by type",
+                    args.ToArray()))
+                {
+                    var type = idx.GetValue<string>("type");
+                    var count = Convert.ToInt64(idx.GetValue<object>("count"));
+                    result.Add((type, count));
+                }
+                return result;
+            }
+        }
+
+        /// <inheritdoc/>
         public async Task<LogItem> Get(object id)
         {
             using (var session = Utilities.CreateSession(_configuration))
