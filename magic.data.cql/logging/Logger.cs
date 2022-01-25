@@ -116,12 +116,12 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public async Task<IEnumerable<LogItem>> QueryAsync(int max, object fromId)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var builder = new StringBuilder();
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
-                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception from log_entries");
+                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception from log");
                 builder.Append(" where tenant = ? and cloudlet = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
@@ -155,12 +155,12 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public async Task<long> CountAsync()
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var builder = new StringBuilder();
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
-                builder.Append("select count(*) from log_entries");
+                builder.Append("select count(*) from log");
                 builder.Append(" where tenant = ? and cloudlet = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
@@ -176,7 +176,7 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public async Task<IEnumerable<(string Type, long Count)>> Types()
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
@@ -186,7 +186,7 @@ namespace magic.data.cql.logging
                 var result = new List<(string Type, long Count)>();
                 foreach (var idx in await Utilities.RecordsAsync(
                     session,
-                    "select type, count(*) as count from log_entries_type_view where tenant = ? and cloudlet = ? group by tenant, cloudlet, type",
+                    "select type, count(*) as count from log where tenant = ? and cloudlet = ? group by tenant, cloudlet, type",
                     args.ToArray()))
                 {
                     var type = idx.GetValue<string>("type");
@@ -200,7 +200,7 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public async Task<IEnumerable<(string When, long Count)>> Timeshift(string content)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
@@ -211,7 +211,7 @@ namespace magic.data.cql.logging
                 var result = new List<(string When, long Count)>();
                 foreach (var idx in await Utilities.RecordsAsync(
                     session,
-                    "select day, count(*) as count from log_entries_day_view where tenant = ? and cloudlet = ? and content = ? group by tenant, cloudlet, day allow filtering",
+                    "select day, count(*) as count from log where tenant = ? and cloudlet = ? and content = ? group by tenant, cloudlet, day allow filtering",
                     args.ToArray()))
                 {
                     var type = Convert.ToString(idx.GetValue<object>("day"));
@@ -225,12 +225,12 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public async Task<LogItem> Get(object id)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var builder = new StringBuilder();
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
-                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception from log_entries");
+                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception from log");
                 builder.Append(" where tenant = ? and cloudlet = ? and created = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
@@ -289,10 +289,10 @@ namespace magic.data.cql.logging
             if (shouldLog)
             {
                 var ids = Utilities.Resolve(_rootResolver);
-                using (var session = Utilities.CreateSession(_configuration))
+                using (var session = Utilities.CreateSession(_configuration, "magic_log"))
                 {
                     var builder = new StringBuilder();
-                    builder.Append("insert into log_entries (tenant, cloudlet, created, day, type, content");
+                    builder.Append("insert into log (tenant, cloudlet, created, day, type, content");
                     if (error != null || stackTrace != null)
                         builder.Append(", exception");
                     builder.Append(") values (:tenant, :cloudlet, now(), currentDate(), ?, ?");

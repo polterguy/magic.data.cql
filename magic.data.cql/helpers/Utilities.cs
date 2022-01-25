@@ -70,23 +70,15 @@ namespace magic.data.cql.helpers
             return (folder, path.Substring(path.LastIndexOf('/') + 1));
         }
 
-        /*
-         * Creates a ScyllaDB session and returns to caller.
-         */
-        internal static ISession CreateSession(string cluster, string keyspace)
+        internal static ISession CreateSession(IConfiguration configuration, string keySpace)
         {
-            return _clusters.GetOrAdd(cluster, (key) =>
+            var connection = GetDefaultConnection(configuration, keySpace);
+            return _clusters.GetOrAdd(connection.Cluster, (key) =>
             {
                 return Cluster.Builder()
                     .AddContactPoints(key)
                     .Build();
-            }).Connect(keyspace);
-        }
-
-        internal static ISession CreateSession(IConfiguration configuration)
-        {
-            var connection = GetDefaultConnection(configuration);
-            return CreateSession(connection.Cluster, connection.KeySpace);
+            }).Connect(connection.KeySpace);
         }
 
         /*
@@ -111,9 +103,11 @@ namespace magic.data.cql.helpers
         /*
          * Returns the default Cluster and keyspace according to configuration settings.
          */
-        static (string Cluster, string KeySpace) GetDefaultConnection(IConfiguration configuration)
+        static (string Cluster, string KeySpace) GetDefaultConnection(
+            IConfiguration configuration,
+            string keySpace)
         {
-            return (configuration["magic:cql:generic:host"] ?? "127.0.0.1", "magic");
+            return (configuration["magic:cql:generic:host"] ?? "127.0.0.1", keySpace);
         }
 
         /*

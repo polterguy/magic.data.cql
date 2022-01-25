@@ -57,13 +57,13 @@ If you want to use a CQL based log implementation, you'll have to configure Magi
 
 ## Schema
 
-To use the alternative CQL based file storage system you'll have to create your _"magic"_ keyspace and its 
+To use the alternative CQL based file storage system you'll have to create your _"magic\_files"_ keyspace and its 
 _"files"_ table as follows.
 
 ```cql
-create keyspace if not exists magic with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 5 };
+create keyspace if not exists magic_files with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 5 };
 
-use magic;
+use magic_files;
 
 create table if not exists files(
    tenant text,
@@ -74,15 +74,15 @@ create table if not exists files(
    primary key((tenant, cloudlet), folder, filename));
 ```
 
-To use the alternative CQL based log implementation you'll have to create your _"magic"_ keyspace and its
+To use the alternative CQL based log implementation you'll have to create your _"magic\_log"_ keyspace and its
 _"log_entries"_ table as follows.
 
 ```cql
-create keyspace if not exists magic with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 5 };
+create keyspace if not exists magic_log with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 3 };
 
-use magic;
+use magic_log;
 
-create table if not exists log_entries(
+create table if not exists log(
    tenant text,
    cloudlet text,
    created timeuuid,
@@ -92,18 +92,18 @@ create table if not exists log_entries(
    exception text,
    primary key((tenant, cloudlet), created)) with clustering order by (created desc);
 
-alter table log_entries with default_time_to_live = 604800;
+alter table log with default_time_to_live = 604800;
 
-create materialized view log_entries_type_view as
-   select * from log_entries
+create materialized view log_type_view as
+   select * from log
       where tenant is not null
          and cloudlet is not null
          and created is not null
          and type is not null
    primary key((tenant, cloudlet), type, created);
 
-create materialized view log_entries_day_view as
-   select * from log_entries
+create materialized view log_day_view as
+   select * from log
       where tenant is not null
          and cloudlet is not null
          and created is not null
@@ -125,7 +125,7 @@ obviously just an example of how it might look like if you've got the files on a
 /*
  * Inserts all dynamic files and folders into the magic CQL database.
  */
-cql.connect:[generic|magic]
+cql.connect:[generic|magic_files]
 
    /*
     * The root folder where your Magic backend is running.

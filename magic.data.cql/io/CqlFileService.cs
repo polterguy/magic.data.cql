@@ -41,7 +41,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task CopyAsync(string source, string destination)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 await SaveAsync(
                     session,
@@ -60,7 +60,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task DeleteAsync(string path)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var ids = Utilities.Resolve(_rootResolver);
                 var relPath = Utilities.BreakDownFileName(_rootResolver, path);
@@ -83,7 +83,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<bool> ExistsAsync(string path)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var ids = Utilities.Resolve(_rootResolver);
                 var relPath = Utilities.BreakDownFileName(_rootResolver, path);
@@ -107,7 +107,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFilesAsync(string folder, string extension = null)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var relPath = Utilities.Relativize(_rootResolver, folder);
                 var ids = Utilities.Resolve(_rootResolver);
@@ -140,7 +140,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFilesRecursivelyAsync(string folder, string extension = null)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var relPath = Utilities.Relativize(_rootResolver, folder);
                 var ids = Utilities.Resolve(_rootResolver);
@@ -174,7 +174,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<string> LoadAsync(string path)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 return Encoding.UTF8.GetString(await GetFileContent(session, _rootResolver, path));
             }
@@ -193,7 +193,7 @@ namespace magic.data.cql.io
             string folder,
             string extension)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var relPath = Utilities.Relativize(_rootResolver, folder);
                 var ids = Utilities.Resolve(_rootResolver);
@@ -228,7 +228,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<byte[]> LoadBinaryAsync(string path)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 return await GetFileContent(session, _rootResolver, path);
             }
@@ -243,7 +243,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task MoveAsync(string source, string destination)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 await SaveAsync(
                     session,
@@ -283,7 +283,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task SaveAsync(string path, byte[] content)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var relDest = Utilities.BreakDownFileName(_rootResolver, path);
                 if (!await CqlFolderService.FolderExists(session, _rootResolver, relDest.Folder))

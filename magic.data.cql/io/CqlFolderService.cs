@@ -51,7 +51,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task CreateAsync(string path)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var ids = Utilities.Resolve(_rootResolver);
                 await Utilities.ExecuteAsync(
@@ -73,7 +73,7 @@ namespace magic.data.cql.io
         public async Task DeleteAsync(string path)
         {
             var relPath = Utilities.Relativize(_rootResolver, path);
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var ids = Utilities.Resolve(_rootResolver);
                 var rs = await Utilities.RecordsAsync(
@@ -103,7 +103,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<bool> ExistsAsync(string path)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 return await FolderExists(session, _rootResolver, Utilities.Relativize(_rootResolver, path));
             }
@@ -119,7 +119,7 @@ namespace magic.data.cql.io
         public async Task<List<string>> ListFoldersAsync(string folder)
         {
             var relPath = Utilities.Relativize(_rootResolver, folder);
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var ids = Utilities.Resolve(_rootResolver);
                 using (var rs = await Utilities.RecordsAsync(
@@ -152,7 +152,7 @@ namespace magic.data.cql.io
         public async Task<List<string>> ListFoldersRecursivelyAsync(string folder)
         {
             var relPath = Utilities.Relativize(_rootResolver, folder);
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var ids = Utilities.Resolve(_rootResolver);
                 using (var rs = await Utilities.RecordsAsync(
@@ -215,7 +215,7 @@ namespace magic.data.cql.io
          */
         async Task CopyMoveImplementation(string source, string destination, bool isMove)
         {
-            using (var session = Utilities.CreateSession(_configuration))
+            using (var session = Utilities.CreateSession(_configuration, "magic_files"))
             {
                 var relSrc = Utilities.Relativize(_rootResolver, source).TrimEnd('/') + "/";
                 var ids = Utilities.Resolve(_rootResolver);
