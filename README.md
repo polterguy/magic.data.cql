@@ -90,7 +90,7 @@ create table if not exists log(
    type text,
    content text,
    exception text,
-   meta text,
+   meta frozen<map<text, text>>,
    primary key((tenant, cloudlet), created)) with clustering order by (created desc);
 
 alter table log with default_time_to_live = 604800;

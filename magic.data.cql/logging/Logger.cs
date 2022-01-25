@@ -150,6 +150,7 @@ namespace magic.data.cql.logging
                     args.ToArray()))
                 {
                     var dt = idx.GetValue<DateTime>("created");
+                    var sd = idx.GetValue<SortedDictionary<string, string>>("meta");
                     result.Add(new LogItem
                     {
                         Id = Convert.ToString(idx.GetValue<Guid>("id")),
@@ -157,7 +158,7 @@ namespace magic.data.cql.logging
                         Type = idx.GetValue<string>("type"),
                         Content = idx.GetValue<string>("content"),
                         Exception = idx.GetValue<string>("exception"),
-                        Meta = idx.GetValue<string>("meta"),
+                        Meta = sd == null ? null : new Dictionary<string, string>(sd),
                     });
                 }
                 return result;
@@ -254,6 +255,7 @@ namespace magic.data.cql.logging
                     builder.ToString(),
                     args.ToArray());
                 var dt = row.GetValue<DateTime>("created");
+                var sd = row.GetValue<SortedDictionary<string, string>>("meta");
                 return new LogItem
                 {
                     Id = Convert.ToString(row.GetValue<Guid>("id")),
@@ -261,7 +263,7 @@ namespace magic.data.cql.logging
                     Type = row.GetValue<string>("type"),
                     Content = row.GetValue<string>("content"),
                     Exception = row.GetValue<string>("exception"),
-                    Meta = row.GetValue<string>("meta"),
+                    Meta = sd == null ? null : new Dictionary<string, string>(sd),
                 };
             }
         }
@@ -335,9 +337,7 @@ namespace magic.data.cql.logging
                         args.Add(stackTrace);
                     if (meta != null && meta.Count > 0)
                     {
-                        var jsonNode = new Node("", null, meta.Select(x => new Node(x.Key, x.Value)));
-                        signaler.Signal("lambda2json", jsonNode);
-                        args.Add(jsonNode.Value);
+                        args.Add(meta);
                     }
                     await Utilities.ExecuteAsync(
                         session,
