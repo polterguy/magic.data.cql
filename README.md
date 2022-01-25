@@ -91,25 +91,27 @@ create table if not exists log(
    content text,
    exception text,
    meta frozen<map<text, text>>,
-   primary key((tenant, cloudlet), created)) with clustering order by (created desc);
+   primary key((tenant, cloudlet), day, created)) with clustering order by (day desc, created desc);
 
 alter table log with default_time_to_live = 604800;
+
+create materialized view log_content_view as
+   select * from log
+      where tenant is not null
+         and cloudlet is not null
+         and day is not null
+         and created is not null
+         and content is not null
+   primary key((tenant, cloudlet), content, day, created) with clustering order by (content asc, day desc, created desc);
 
 create materialized view log_type_view as
    select * from log
       where tenant is not null
          and cloudlet is not null
+         and day is not null
          and created is not null
          and type is not null
-   primary key((tenant, cloudlet), type, created);
-
-create materialized view log_day_view as
-   select * from log
-      where tenant is not null
-         and cloudlet is not null
-         and created is not null
-         and day is not null
-   primary key((tenant, cloudlet), day, created);
+   primary key((tenant, cloudlet), type, day, created);
 ```
 
 **Notice** - The above setting for TTL implies log items will be automatically deleted after 7 days,

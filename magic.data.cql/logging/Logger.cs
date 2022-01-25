@@ -4,11 +4,9 @@
 
 using System;
 using System.Text;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
-using magic.node;
 using magic.node.contracts;
 using magic.node.extensions;
 using magic.data.cql.helpers;
@@ -125,14 +123,15 @@ namespace magic.data.cql.logging
         #region [ -- ILogQuery interface implementation -- ]
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<LogItem>> QueryAsync(int max, object fromId)
+        public async Task<IEnumerable<LogItem>> QueryAsync(int max, object fromId, string content = null)
         {
             using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var builder = new StringBuilder();
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
-                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception, meta from log");
+                var table = content == null ? "log" : "log_content_view";
+                builder.Append($"select created as id, toTimestamp(created) as created, type, content, exception, meta from {table}");
                 builder.Append(" where tenant = ? and cloudlet = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
@@ -141,7 +140,12 @@ namespace magic.data.cql.logging
                     builder.Append($" and created < ?");
                     args.Add(Guid.Parse(fromId.ToString()));
                 }
-                builder.Append($" order by created desc limit {max}");
+                if (!string.IsNullOrEmpty(content))
+                {
+                    builder.Append(" and content = ?");
+                    args.Add(content);
+                }
+                builder.Append($" order by {(content == null ? "day desc, created desc" : "content, day desc, created desc")} limit {max}");
 
                 var result = new List<LogItem>();
                 foreach (var idx in await Utilities.RecordsAsync(
@@ -166,17 +170,23 @@ namespace magic.data.cql.logging
         }
 
         /// <inheritdoc/>
-        public async Task<long> CountAsync()
+        public async Task<long> CountAsync(string content = null)
         {
             using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var builder = new StringBuilder();
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
-                builder.Append("select count(*) from log");
+                var table = content == null ? "log" : "log_content_view";
+                builder.Append($"select count(*) from {table}");
                 builder.Append(" where tenant = ? and cloudlet = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
+                if (!string.IsNullOrEmpty(content))
+                {
+                    builder.Append(" and content = ?");
+                    args.Add(content);
+                }
 
                 var rs = await Utilities.SingleAsync(
                     session,
@@ -199,7 +209,7 @@ namespace magic.data.cql.logging
                 var result = new List<(string Type, long Count)>();
                 foreach (var idx in await Utilities.RecordsAsync(
                     session,
-                    "select type, count(*) as count from log where tenant = ? and cloudlet = ? group by tenant, cloudlet, type",
+                    "select type, count(*) as count from log_type_view where tenant = ? and cloudlet = ? group by tenant, cloudlet, type",
                     args.ToArray()))
                 {
                     var type = idx.GetValue<string>("type");
@@ -224,7 +234,7 @@ namespace magic.data.cql.logging
                 var result = new List<(string When, long Count)>();
                 foreach (var idx in await Utilities.RecordsAsync(
                     session,
-                    "select day, count(*) as count from log where tenant = ? and cloudlet = ? and content = ? group by tenant, cloudlet, day allow filtering",
+                    "select day, count(*) as count from log_content_view where tenant = ? and cloudlet = ? and content = ? group by tenant, cloudlet, day",
                     args.ToArray()))
                 {
                     var type = Convert.ToString(idx.GetValue<object>("day"));
