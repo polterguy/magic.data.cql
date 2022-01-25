@@ -4,10 +4,13 @@
 
 using System;
 using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
+using magic.node;
 using magic.node.contracts;
+using magic.node.extensions;
 using magic.data.cql.helpers;
 using magic.signals.contracts;
 using magic.lambda.logging.contracts;
@@ -43,75 +46,83 @@ namespace magic.data.cql.logging
 
         #region [ -- Interface implementations -- ]
 
+        #region [ -- ILogger interface implementation -- ]
+
         /// <inheritdoc/>
-        public void Debug(string value)
+        public Task DebugAsync(string content)
         {
-            InsertLogEntryAsync("debug", value)
-                .GetAwaiter()
-                .GetResult();
+            return InsertLogEntryAsync(_signaler, "debug", content, null, null);
         }
 
         /// <inheritdoc/>
-        public void Error(string value, Exception error = null)
+        public Task DebugAsync(string content, Dictionary<string, string> meta)
         {
-            InsertLogEntryAsync("error", value, error)
-                .GetAwaiter()
-                .GetResult();
+            return InsertLogEntryAsync(_signaler, "debug", content, meta, null);
         }
 
         /// <inheritdoc/>
-        public void Error(string value, string stackTrace)
+        public Task InfoAsync(string content)
         {
-            InsertLogEntryAsync("error", value, null, stackTrace)
-                .GetAwaiter()
-                .GetResult();
+            return InsertLogEntryAsync(_signaler, "info", content, null, null);
         }
 
         /// <inheritdoc/>
-        public void Fatal(string value, Exception error = null)
+        public Task InfoAsync(string content, Dictionary<string, string> meta)
         {
-            InsertLogEntryAsync("fatal", value, error)
-                .GetAwaiter()
-                .GetResult();
+            return InsertLogEntryAsync(_signaler, "info", content, meta, null);
         }
 
         /// <inheritdoc/>
-        public void Info(string value)
+        public Task ErrorAsync(string content)
         {
-            InsertLogEntryAsync("info", value)
-                .GetAwaiter()
-                .GetResult();
+            return InsertLogEntryAsync(_signaler, "error", content, null, null);
         }
 
         /// <inheritdoc/>
-        public Task DebugAsync(string value)
+        public Task ErrorAsync(string content, Dictionary<string, string> meta)
         {
-            return InsertLogEntryAsync("debug", value);
+            return InsertLogEntryAsync(_signaler, "error", content, meta, null);
         }
 
         /// <inheritdoc/>
-        public Task ErrorAsync(string value, Exception error = null)
+        public Task ErrorAsync(string content, string stackTrace)
         {
-            return InsertLogEntryAsync("error", value, error);
+            return InsertLogEntryAsync(_signaler, "error", content, null, stackTrace);
         }
 
         /// <inheritdoc/>
-        public Task ErrorAsync(string value, string stackTrace)
+        public Task ErrorAsync(string content, Dictionary<string, string> meta, string stackTrace)
         {
-            return InsertLogEntryAsync("error", value, null, stackTrace);
+            return InsertLogEntryAsync(_signaler, "error", content, meta, stackTrace);
         }
 
         /// <inheritdoc/>
-        public Task FatalAsync(string value, Exception error = null)
+        public Task FatalAsync(string content)
         {
-            return InsertLogEntryAsync("fatal", value, error);
+            return InsertLogEntryAsync(_signaler, "fatal", content, null, null);
         }
 
         /// <inheritdoc/>
-        public Task InfoAsync(string value)
+        public Task FatalAsync(string content, Dictionary<string, string> meta)
         {
-            return InsertLogEntryAsync("info", value);
+            return InsertLogEntryAsync(_signaler, "fatal", content, meta, null);
         }
+
+        /// <inheritdoc/>
+        public Task FatalAsync(string content, string stackTrace)
+        {
+            return InsertLogEntryAsync(_signaler, "fatal", content, null, stackTrace);
+        }
+
+        /// <inheritdoc/>
+        public Task FatalAsync(string content, Dictionary<string, string> meta, string stackTrace)
+        {
+            return InsertLogEntryAsync(_signaler, "fatal", content, meta, stackTrace);
+        }
+
+        #endregion
+
+        #region [ -- ILogQuery interface implementation -- ]
 
         /// <inheritdoc/>
         public async Task<IEnumerable<LogItem>> QueryAsync(int max, object fromId)
@@ -121,7 +132,7 @@ namespace magic.data.cql.logging
                 var builder = new StringBuilder();
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
-                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception from log");
+                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception, meta from log");
                 builder.Append(" where tenant = ? and cloudlet = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
@@ -146,6 +157,7 @@ namespace magic.data.cql.logging
                         Type = idx.GetValue<string>("type"),
                         Content = idx.GetValue<string>("content"),
                         Exception = idx.GetValue<string>("exception"),
+                        Meta = idx.GetValue<string>("meta"),
                     });
                 }
                 return result;
@@ -249,19 +261,23 @@ namespace magic.data.cql.logging
                     Type = row.GetValue<string>("type"),
                     Content = row.GetValue<string>("content"),
                     Exception = row.GetValue<string>("exception"),
+                    Meta = row.GetValue<string>("meta"),
                 };
             }
         }
 
         #endregion
 
+        #endregion
+
         #region [ -- Private helper methods and properties -- ]
 
         async Task InsertLogEntryAsync(
+            ISignaler signaler,
             string type,
             string content,
-            Exception error = null, 
-            string stackTrace = null)
+            Dictionary<string, string> meta,
+            string stackTrace)
         {
             // Retrieving IDbConnection to use.
             var level = _magicConfiguration["magic:logging:level"] ?? "debug";
@@ -283,6 +299,11 @@ namespace magic.data.cql.logging
                 case "fatal":
                     shouldLog = level == "fatal" || level == "error" || level == "info" || level == "debug";
                     break;
+
+                default:
+                    if (level != "off")
+                        throw new HyperlambdaException($"Configuration error, I only understand 'debug', 'info', 'error', 'fatal', and 'off' as magic:logging:level.");
+                    break;
             }
 
             // Verifying we're supposed to log.
@@ -293,10 +314,14 @@ namespace magic.data.cql.logging
                 {
                     var builder = new StringBuilder();
                     builder.Append("insert into log (tenant, cloudlet, created, day, type, content");
-                    if (error != null || stackTrace != null)
+                    if (stackTrace != null)
                         builder.Append(", exception");
+                    if (meta != null && meta.Count > 0)
+                        builder.Append(", meta");
                     builder.Append(") values (:tenant, :cloudlet, now(), currentDate(), ?, ?");
-                    if (error != null || stackTrace != null)
+                    if (stackTrace != null)
+                        builder.Append(", ?");
+                    if (meta != null && meta.Count > 0)
                         builder.Append(", ?");
                     builder.Append(")");
                     var args = new List<object>
@@ -306,8 +331,14 @@ namespace magic.data.cql.logging
                         type,
                         content,
                     };
-                    if (error != null || stackTrace != null)
-                        args.Add(error?.StackTrace ?? stackTrace);
+                    if (stackTrace != null)
+                        args.Add(stackTrace);
+                    if (meta != null && meta.Count > 0)
+                    {
+                        var jsonNode = new Node("", null, meta.Select(x => new Node(x.Key, x.Value)));
+                        signaler.Signal("lambda2json", jsonNode);
+                        args.Add(jsonNode.Value);
+                    }
                     await Utilities.ExecuteAsync(
                         session,
                         builder.ToString(),
