@@ -197,30 +197,6 @@ namespace magic.data.cql.logging
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<(string Type, long Count)>> Types()
-        {
-            using (var session = Utilities.CreateSession(_configuration, "magic_log"))
-            {
-                var ids = Utilities.Resolve(_rootResolver);
-                List<object> args = new List<object>();
-                args.Add(ids.Tenant);
-                args.Add(ids.Cloudlet);
-
-                var result = new List<(string Type, long Count)>();
-                foreach (var idx in await Utilities.RecordsAsync(
-                    session,
-                    "select type, count(*) as count from log_type_view where tenant = ? and cloudlet = ? group by tenant, cloudlet, type",
-                    args.ToArray()))
-                {
-                    var type = idx.GetValue<string>("type");
-                    var count = Convert.ToInt64(idx.GetValue<object>("count"));
-                    result.Add((type, count));
-                }
-                return result;
-            }
-        }
-
-        /// <inheritdoc/>
         public async Task<IEnumerable<(string When, long Count)>> Timeshift(string content)
         {
             using (var session = Utilities.CreateSession(_configuration, "magic_log"))

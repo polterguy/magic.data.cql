@@ -103,15 +103,6 @@ create materialized view log_content_view as
          and created is not null
          and content is not null
    primary key((tenant, cloudlet), content, day, created) with clustering order by (content asc, day desc, created desc);
-
-create materialized view log_type_view as
-   select * from log
-      where tenant is not null
-         and cloudlet is not null
-         and day is not null
-         and created is not null
-         and type is not null
-   primary key((tenant, cloudlet), type, day, created);
 ```
 
 **Notice** - The above setting for TTL implies log items will be automatically deleted after 7 days,
