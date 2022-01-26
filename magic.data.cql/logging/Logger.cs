@@ -126,13 +126,16 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public async Task<IEnumerable<LogItem>> QueryAsync(int max, object fromId, string content = null)
         {
+            // Sanity checking invocation.
+            if (content != null)
+                throw new HyperlambdaException("The NoSQL data adapter doesn't support content filtering for log items");
+
             using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var builder = new StringBuilder();
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
-                var table = content == null ? "log" : "log_content_view";
-                builder.Append($"select created as id, toTimestamp(created) as created, type, content, exception, meta from {table}");
+                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception, meta from log");
                 builder.Append(" where tenant = ? and cloudlet = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
@@ -141,12 +144,7 @@ namespace magic.data.cql.logging
                     builder.Append($" and created < ?");
                     args.Add(Guid.Parse(fromId.ToString()));
                 }
-                if (!string.IsNullOrEmpty(content))
-                {
-                    builder.Append(" and content = ?");
-                    args.Add(content);
-                }
-                builder.Append($" order by {(content == null ? "day desc, created desc" : "content, day desc, created desc")} limit {max}");
+                builder.Append($" order by created desc limit {max}");
 
                 var result = new List<LogItem>();
                 foreach (var idx in await Utilities.RecordsAsync(
@@ -173,6 +171,10 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public async Task<long> CountAsync(string content = null)
         {
+            // Sanity checking invocation.
+            if (content != null)
+                throw new HyperlambdaException("The NoSQL data adapter doesn't support content filtering for log items");
+
             using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
                 var builder = new StringBuilder();
@@ -198,28 +200,9 @@ namespace magic.data.cql.logging
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<(string When, long Count)>> Timeshift(string content)
+        public Task<IEnumerable<(string When, long Count)>> Timeshift(string content)
         {
-            using (var session = Utilities.CreateSession(_configuration, "magic_log"))
-            {
-                var ids = Utilities.Resolve(_rootResolver);
-                List<object> args = new List<object>();
-                args.Add(ids.Tenant);
-                args.Add(ids.Cloudlet);
-                args.Add(content);
-
-                var result = new List<(string When, long Count)>();
-                foreach (var idx in await Utilities.RecordsAsync(
-                    session,
-                    "select day, count(*) as count from log_content_view where tenant = ? and cloudlet = ? and content = ? group by tenant, cloudlet, day",
-                    args.ToArray()))
-                {
-                    var type = Convert.ToString(idx.GetValue<object>("day"));
-                    var count = Convert.ToInt64(idx.GetValue<object>("count"));
-                    result.Add((type, count));
-                }
-                return result;
-            }
+            throw new HyperlambdaException("The NoSQL data adapter doesn't support timeshift invocations");
         }
 
         /// <inheritdoc/>
@@ -230,7 +213,7 @@ namespace magic.data.cql.logging
                 var builder = new StringBuilder();
                 var ids = Utilities.Resolve(_rootResolver);
                 List<object> args = new List<object>();
-                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception from log");
+                builder.Append("select created as id, toTimestamp(created) as created, type, content, meta, exception from log");
                 builder.Append(" where tenant = ? and cloudlet = ? and created = ?");
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
@@ -252,6 +235,16 @@ namespace magic.data.cql.logging
                     Meta = sd == null ? null : new Dictionary<string, string>(sd),
                 };
             }
+        }
+
+        /// <inheritdoc/>
+        public Capabilities Capabilities()
+        {
+            return new Capabilities
+            {
+                CanFilter = false,
+                CanTimeShift = false,
+            };
         }
 
         #endregion
