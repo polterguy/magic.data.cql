@@ -93,7 +93,7 @@ create table if not exists log(
    meta frozen<map<text, text>>,
    primary key((tenant, cloudlet), day, created)) with clustering order by (day desc, created desc);
 
-alter table log with default_time_to_live = 604800;
+alter table log with default_time_to_live = 1209600;
 
 create materialized view log_content_view as
    select * from log
@@ -105,8 +105,9 @@ create materialized view log_content_view as
    primary key((tenant, cloudlet), content, day, created) with clustering order by (content asc, day desc, created desc);
 ```
 
-**Notice** - The above setting for TTL implies log items will be automatically deleted after 7 days,
-since 604,800 seconds implies 7 days. Depending upon your needs you might want to increase this setting.
+**Notice** - The above setting for TTL implies log items will be automatically deleted after 14 days,
+since 1,209,600 seconds implies 14 days. Depending upon your needs you might want to increase or decrease this
+setting.
 
 ## Adding existing files into keyspace
 
