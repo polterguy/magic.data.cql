@@ -191,7 +191,7 @@ remove-nodes:x:../**/io.file.list-recursively/*
 
 ## Project website
 
-The source code for this repository can be found at [github.com/polterguy/magic.data.cql](https://github.com/polterguy/magic.data.common), and you can provide feedback, provide bug reports, etc at the same place.
+The source code for this repository can be found at [github.com/polterguy/magic.data.cql](https://github.com/polterguy/magic.data.cql), and you can provide feedback, provide bug reports, etc at the same place.
 
 ## Quality gates
 
