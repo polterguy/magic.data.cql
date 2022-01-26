@@ -4,6 +4,7 @@
 
 using System;
 using System.Text;
+using System.Globalization;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
@@ -306,7 +307,7 @@ namespace magic.data.cql.logging
                         builder.Append(", exception");
                     if (meta != null && meta.Count > 0)
                         builder.Append(", meta");
-                    builder.Append(") values (:tenant, :cloudlet, now(), currentDate(), ?, ?");
+                    builder.Append(") values (?, ?, now(), ?, ?, ?");
                     if (stackTrace != null)
                         builder.Append(", ?");
                     if (meta != null && meta.Count > 0)
@@ -316,6 +317,7 @@ namespace magic.data.cql.logging
                     {
                         ids.Tenant,
                         ids.Cloudlet,
+                        DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                         type,
                         content,
                     };

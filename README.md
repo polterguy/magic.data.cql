@@ -86,7 +86,7 @@ create table if not exists log(
    tenant text,
    cloudlet text,
    created timeuuid,
-   day date,
+   day text,
    type text,
    content text,
    exception text,
