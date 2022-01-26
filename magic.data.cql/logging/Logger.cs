@@ -4,7 +4,7 @@
 
 using System;
 using System.Text;
-using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
@@ -130,22 +130,30 @@ namespace magic.data.cql.logging
             if (content != null)
                 throw new HyperlambdaException("The NoSQL data adapter doesn't support content filtering for log items");
 
+            // Creating a cluster session using magic_log keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
-                var builder = new StringBuilder();
-                var ids = Utilities.Resolve(_rootResolver);
+                // Creating builder to hold our CQL.
+                var builder = new StringBuilder(
+                    "select created as id, toTimestamp(created) as created, type, content, exception, meta from log where tenant = ? and cloudlet = ?");
+
+                // Creating arguments to hold our arguments.
                 List<object> args = new List<object>();
-                builder.Append("select created as id, toTimestamp(created) as created, type, content, exception, meta from log");
-                builder.Append(" where tenant = ? and cloudlet = ?");
+                var ids = Utilities.Resolve(_rootResolver);
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
+
+                // Checking if we're paging from a specific log item.
                 if (fromId != null)
                 {
                     builder.Append($" and created < ?");
                     args.Add(Guid.Parse(fromId.ToString()));
                 }
+
+                // Appending tail.
                 builder.Append($" order by created desc limit {max}");
 
+                // Executing CQL and returning records to caller.
                 var result = new List<LogItem>();
                 foreach (var idx in await Utilities.RecordsAsync(
                     session,
@@ -175,22 +183,19 @@ namespace magic.data.cql.logging
             if (content != null)
                 throw new HyperlambdaException("The NoSQL data adapter doesn't support content filtering for log items");
 
+            // Creating a cluster session using magic_log keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
-                var builder = new StringBuilder();
-                var ids = Utilities.Resolve(_rootResolver);
+                // Creating builder to hold our CQL.
+                var builder = new StringBuilder("select count(*) from log where tenant = ? and cloudlet = ?");
+
+                // Creating arguments to hold our arguments.
                 List<object> args = new List<object>();
-                var table = content == null ? "log" : "log_content_view";
-                builder.Append($"select count(*) from {table}");
-                builder.Append(" where tenant = ? and cloudlet = ?");
+                var ids = Utilities.Resolve(_rootResolver);
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
-                if (!string.IsNullOrEmpty(content))
-                {
-                    builder.Append(" and content = ?");
-                    args.Add(content);
-                }
 
+                // Executing CQL and returning scalar value to caller being count of items.
                 var rs = await Utilities.SingleAsync(
                     session,
                     builder.ToString(),
@@ -208,21 +213,27 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public async Task<LogItem> Get(object id)
         {
+            // Creating a cluster session using magic_log keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_log"))
             {
-                var builder = new StringBuilder();
-                var ids = Utilities.Resolve(_rootResolver);
+                // Creating builder to hold our CQL.
+                var builder = new StringBuilder(
+                    "select created as id, toTimestamp(created) as created, type, content, meta, exception from log where tenant = ? and cloudlet = ? and created = ?");
+
+                // Creating arguments to hold our arguments.
                 List<object> args = new List<object>();
-                builder.Append("select created as id, toTimestamp(created) as created, type, content, meta, exception from log");
-                builder.Append(" where tenant = ? and cloudlet = ? and created = ?");
+                var ids = Utilities.Resolve(_rootResolver);
                 args.Add(ids.Tenant);
                 args.Add(ids.Cloudlet);
                 args.Add(Guid.Parse(id.ToString()));
 
+                // Executing CQL making sure we get one record returned.
                 var row = await Utilities.SingleAsync(
                     session,
                     builder.ToString(),
-                    args.ToArray());
+                    args.ToArray()) ?? throw new HyperlambdaException($"Log item with id of '{id}' was not found");
+
+                // Returning record to caller.
                 var dt = row.GetValue<DateTime>("created");
                 var sd = row.GetValue<SortedDictionary<string, string>>("meta");
                 return new LogItem
@@ -293,32 +304,35 @@ namespace magic.data.cql.logging
                 var ids = Utilities.Resolve(_rootResolver);
                 using (var session = Utilities.CreateSession(_configuration, "magic_log"))
                 {
-                    var builder = new StringBuilder();
-                    builder.Append("insert into log (tenant, cloudlet, created, day, type, content");
-                    if (stackTrace != null)
-                        builder.Append(", exception");
-                    if (meta != null && meta.Count > 0)
-                        builder.Append(", meta");
-                    builder.Append(") values (?, ?, now(), ?, ?, ?");
-                    if (stackTrace != null)
-                        builder.Append(", ?");
-                    if (meta != null && meta.Count > 0)
-                        builder.Append(", ?");
-                    builder.Append(")");
+                    // Creating our CQL and argument collection.
+                    var builder = new StringBuilder("insert into log (tenant, cloudlet, created, type, content");
+                    var tail = new StringBuilder(") values (?, ?, now(), ?, ?");
                     var args = new List<object>
                     {
                         ids.Tenant,
                         ids.Cloudlet,
-                        DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                         type,
                         content,
                     };
+
+                    // Checking if we've got an exception.
                     if (stackTrace != null)
-                        args.Add(stackTrace);
-                    if (meta != null && meta.Count > 0)
                     {
-                        args.Add(meta);
+                        builder.Append(", exception");
+                        args.Add(stackTrace);
+                        tail.Append(", ?");
                     }
+
+                    // Checking if we've got meta information.
+                    if (meta != null && meta.Any())
+                    {
+                        builder.Append(", meta");
+                        args.Add(meta);
+                        tail.Append(", ?");
+                    }
+                    tail.Append(")");
+                    builder.Append(tail.ToString());
+
                     await Utilities.ExecuteAsync(
                         session,
                         builder.ToString(),
