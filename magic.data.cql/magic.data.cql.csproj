@@ -51,5 +51,6 @@
     <PackageReference Include="magic.signals" Version="10.0.20" />
     <PackageReference Include="magic.node.extensions" Version="10.0.20" />
     <PackageReference Include="magic.lambda.logging" Version="10.0.20" />
+    <PackageReference Include="magic.lambda.caching" Version="10.0.20" />
   </ItemGroup>
 </Project>

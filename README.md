@@ -3,11 +3,13 @@
 
 This data adapter contains alternative NoSQL file system services, implementing `IFileService`, `IFolderService`, and
 `IStreamService`, allowing you to use as an interchangeable _"virtual file system"_ for cases where you want
-to have 100% stateless magic instances, which is important if you're using Magic in a Kubernetes cluster or
+to have 100% stateless magic instances. This is important if you're using Magic in a Kubernetes cluster or
 something similar, load balancing invocations, virtually resolving files and folders towards a virtual file system.
 If you take this path you'll have to configure your _"appsettings.json"_ file such as illustrated further
 down in this document. The project also contains an `ILogger` implementation service you can use that will create
-log entries in a NoSQL based storage of your choice. See below for details about how to configure this.
+log entries in a NoSQL based storage of your choice, in addition to an `IMagicCache` implementation service
+allowing you to use a NoSQL based out of process cache implementation. See below for details about how to configure
+this.
 
 ## Configuration
 
@@ -55,6 +57,19 @@ If you want to use a CQL based log implementation, you'll have to configure Magi
 }
 ```
 
+If you want to use a CQL based cache implementation, you'll have to configure Magic to use a NoSQL
+`IMagicCache` service such as follows.
+
+```json
+{
+  "magic": {
+    "caching": {
+      "service": "magic.data.cql.caching.Caching"
+    }
+  }
+}
+```
+
 ## Schema
 
 To use the alternative CQL based file storage system you'll have to create your _"magic\_files"_ keyspace and its 
@@ -93,6 +108,22 @@ create table if not exists log(
    primary key((tenant, cloudlet), created)) with clustering order by (created desc);
 
 alter table log with default_time_to_live = 1209600;
+```
+
+To use the alternative CQL based cache implementation you'll have to create your _"magic\_cache"_ keyspace and its
+_"cache"_ table as follows.
+
+```sql
+create keyspace if not exists magic_cache with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 3 };
+
+use magic_cache;
+
+create table if not exists cache(
+   tenant text,
+   cloudlet text,
+   key text,
+   value text,
+   primary key((tenant, cloudlet), key));
 ```
 
 **Notice** - The above setting for TTL implies log items will be automatically deleted after 14 days,
