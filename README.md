@@ -1,5 +1,5 @@
 
-# CQL IO and logging adapters for Hyperlambda
+# NoSQL IO and logging adapters for Hyperlambda
 
 This data adapter contains alternative NoSQL file system services, implementing `IFileService`, `IFolderService`, and
 `IStreamService`, allowing you to use as an interchangeable _"virtual file system"_ for cases where you want
@@ -75,7 +75,7 @@ create table if not exists files(
 ```
 
 To use the alternative CQL based log implementation you'll have to create your _"magic\_log"_ keyspace and its
-_"log_entries"_ table as follows.
+_"log"_ table as follows.
 
 ```cql
 create keyspace if not exists magic_log with replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': 3 };
@@ -105,6 +105,10 @@ The following Hyperlambda will insert all your existing files and folders into y
 play around with an existing CQL file system implementation. Notice, you'll have to change the **[.tenant]** and
 **[.cloudlet]** values to resemble the absolute root folder for your Magic backend. The values in the file below is
 obviously just an example of how it might look like if you've got the files on a Mac within your _"Documents"_ folder.
+The _"tenant"_ and the _"cloudlet"_ parts are resolved by doing a string split operation on your `magic:io:root-files`
+root folder upon the last (/) found in your folder - Implying if you use the Docker images with the default configuration
+the _"tenant"_ part would become _"magic"_ and the _"cloudlet"_ part would become _"files"_, since the Docker images
+stores files within the _"/magic/files/"_ folder.
 
 ```
 /*
