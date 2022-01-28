@@ -32,7 +32,9 @@ namespace magic.data.cql.caching
         }
 
         /// <inheritdoc/>
-        public async Task ClearAsync(string filter = null, bool hidden = false)
+        public async Task ClearAsync(
+            string filter = null,
+            bool hidden = false)
         {
             // Creating a cluster session using magic_cache keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_cache"))
@@ -54,7 +56,7 @@ namespace magic.data.cql.caching
                             new object[] {
                                 ids.Tenant,
                                 ids.Cloudlet,
-                                GetKey(key, hidden),
+                                key,
                             });
                     }
                 }
@@ -62,7 +64,9 @@ namespace magic.data.cql.caching
         }
 
         /// <inheritdoc/>
-        public Task<object> GetAsync(string key, bool hidden = false)
+        public async Task<string> GetAsync(
+            string key,
+            bool hidden = false)
         {
             // Creating a cluster session using magic_cache keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_cache"))
@@ -71,14 +75,14 @@ namespace magic.data.cql.caching
                 var ids = Utilities.Resolve(_rootResolver);
 
                 // Invoking helper method to return cache item.
-                return GetAsync(session, ids.Tenant, ids.Cloudlet, hidden, key);
+                return await GetAsync(session, ids.Tenant, ids.Cloudlet, hidden, key);
             }
         }
 
         /// <inheritdoc/>
-        public async Task<object> GetOrCreateAsync(
+        public async Task<string> GetOrCreateAsync(
             string key,
-            Func<Task<(object, DateTime)>> factory,
+            Func<Task<(string, DateTime)>> factory,
             bool hidden = false)
         {
             // Creating a cluster session using magic_cache keyspace.
@@ -121,7 +125,7 @@ namespace magic.data.cql.caching
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<KeyValuePair<string, object>>> ItemsAsync(
+        public async Task<IEnumerable<KeyValuePair<string, string>>> ItemsAsync(
             string filter = null,
             bool hidden = false)
         {
@@ -132,12 +136,12 @@ namespace magic.data.cql.caching
                 var ids = Utilities.Resolve(_rootResolver);
 
                 // Returning matches to caller.
-                var result = new List<KeyValuePair<string, object>>();
+                var result = new List<KeyValuePair<string, string>>();
                 foreach (var idx in await IterateAsync(session, ids.Tenant, ids.Cloudlet))
                 {
                     var key = idx.GetValue<string>("key");
                     if (IsMatch(key, filter, hidden))
-                        result.Add(new KeyValuePair<string, object>(key, idx.GetValue<string>("value")));
+                        result.Add(new KeyValuePair<string, string>(key.Substring(1), idx.GetValue<string>("value")));
                 }
                 return result;
             }
@@ -170,9 +174,9 @@ namespace magic.data.cql.caching
         }
 
         /// <inheritdoc/>
-        public Task UpsertAsync(
+        public async Task UpsertAsync(
             string key,
-            object value,
+            string value,
             DateTime utcExpiration,
             bool hidden = false)
         {
@@ -192,7 +196,7 @@ namespace magic.data.cql.caching
                 var ids = Utilities.Resolve(_rootResolver);
 
                 // Invoking helper method to upsert item.
-                return UpsertAsync(
+                await UpsertAsync(
                     session,
                     ids.Tenant,
                     ids.Cloudlet,
@@ -206,9 +210,38 @@ namespace magic.data.cql.caching
         #region [ -- Private helper methods -- ]
 
         /*
+         * Helper method to upsert item.
+         */
+        static async Task UpsertAsync(
+            ISession session,
+            string tenant,
+            string cloudlet,
+            string key,
+            bool hidden,
+            int ttl,
+            string value)
+        {
+            // Creating our CQL.
+            var cql = ttl == -1 ? 
+                "insert into cache (tenant, cloudlet, key, value) values (?, ?, ?, ?)" :
+                $"insert into cache (tenant, cloudlet, key, value) values (?, ?, ?, ?) using ttl {ttl}";
+
+            // Executing CQL towards session.
+            await Utilities.ExecuteAsync(
+                session,
+                cql,
+                new object[] {
+                    tenant,
+                    cloudlet,
+                    GetKey(key, hidden),
+                    value.ToString(),
+                });
+        }
+
+        /*
          * Returning cache item from the specified session with the given values.
          */
-        static async Task<object> GetAsync(
+        static async Task<string> GetAsync(
             ISession session,
             string tenant,
             string cloudlet,
@@ -233,38 +266,12 @@ namespace magic.data.cql.caching
         }
 
         /*
-         * Helper method to upsert item.
-         */
-        static async Task UpsertAsync(
-            ISession session,
-            string tenant,
-            string cloudlet,
-            string key,
-            bool hidden,
-            int ttl,
-            object value)
-        {
-            // Creating our CQL.
-            var cql = ttl == -1 ? 
-                "insert into cache (tenant, cloudlet, key, value) values (?, ?, ?, ?)" :
-                $"insert into cache (tenant, cloudlet, key, value) values (?, ?, ?, ?) using ttl {ttl}";
-
-            // Executing CQL towards session.
-            await Utilities.ExecuteAsync(
-                session,
-                cql,
-                new object[] {
-                    tenant,
-                    cloudlet,
-                    GetKey(key, hidden),
-                    value.ToString(),
-                });
-        }
-
-        /*
          * Helper method to iterate all cache items belonging to tenant/cloudlet combination.
          */
-        static async Task<RowSet> IterateAsync(ISession session, string tenant, string cloudlet)
+        static async Task<RowSet> IterateAsync(
+            ISession session,
+            string tenant,
+            string cloudlet)
         {
             // Creating our CQL.
             var cql = "select key, value from cache where tenant = ? and cloudlet = ?";
