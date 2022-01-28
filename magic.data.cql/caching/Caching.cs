@@ -34,7 +34,31 @@ namespace magic.data.cql.caching
         /// <inheritdoc/>
         public async Task ClearAsync(string filter = null, bool hidden = false)
         {
-            throw new NotImplementedException();
+            // Creating a cluster session using magic_cache keyspace.
+            using (var session = Utilities.CreateSession(_configuration, "magic_cache"))
+            {
+                // Figuring out tenant and cloudlet values.
+                var ids = Utilities.Resolve(_rootResolver);
+
+                // Iterating through each item in cache
+                foreach (var idx in await IterateAsync(session, ids.Tenant, ids.Cloudlet))
+                {
+                    // Retrieving key and verifying this is a match.
+                    var key = idx.GetValue<string>("key");
+                    if (IsMatch(key, filter, hidden))
+                    {
+                        // Deleting item.
+                        await Utilities.ExecuteAsync(
+                            session,
+                            "delete from cache where tenant = ? and cloudlet = ? and key = ?",
+                            new object[] {
+                                ids.Tenant,
+                                ids.Cloudlet,
+                                GetKey(key, hidden),
+                            });
+                    }
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -52,7 +76,10 @@ namespace magic.data.cql.caching
         }
 
         /// <inheritdoc/>
-        public async Task<object> GetOrCreateAsync(string key, Func<Task<(object, DateTime)>> factory, bool hidden = false)
+        public async Task<object> GetOrCreateAsync(
+            string key,
+            Func<Task<(object, DateTime)>> factory,
+            bool hidden = false)
         {
             // Creating a cluster session using magic_cache keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_cache"))
@@ -61,7 +88,12 @@ namespace magic.data.cql.caching
                 var ids = Utilities.Resolve(_rootResolver);
 
                 // Invoking helper method to return cache item.
-                var cached = await GetAsync(session, ids.Tenant, ids.Cloudlet, hidden, key);
+                var cached = await GetAsync(
+                    session,
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    hidden,
+                    key);
                 if (cached != null)
                     return cached;
 
@@ -69,10 +101,19 @@ namespace magic.data.cql.caching
                 var created = await factory();
 
                 // Figuring out TTL value of newly created item.
-                var ttl = created.Item2 > DateTime.UtcNow.AddYears(1) ? -1 : Convert.ToInt32((created.Item2 - DateTime.UtcNow).TotalSeconds);
+                var ttl = created.Item2 > DateTime.UtcNow.AddYears(1) ?
+                    -1 :
+                    Convert.ToInt32((created.Item2 - DateTime.UtcNow).TotalSeconds);
 
                 // Upserting item.
-                await UpsertAsync(session, ids.Tenant, ids.Cloudlet, key, hidden, ttl, created.Item1);
+                await UpsertAsync(
+                    session,
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    key,
+                    hidden,
+                    ttl,
+                    created.Item1);
 
                 // Returning item to caller.
                 return created.Item1;
@@ -80,7 +121,9 @@ namespace magic.data.cql.caching
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<KeyValuePair<string, object>>> ItemsAsync(string filter = null, bool hidden = false)
+        public async Task<IEnumerable<KeyValuePair<string, object>>> ItemsAsync(
+            string filter = null,
+            bool hidden = false)
         {
             // Creating a cluster session using magic_cache keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_cache"))
@@ -88,34 +131,22 @@ namespace magic.data.cql.caching
                 // Figuring out tenant and cloudlet values.
                 var ids = Utilities.Resolve(_rootResolver);
 
-                // Creating our CQL.
-                var cql = "select key, value from cache where tenant = ? and cloudlet = ?";
-
-                // Executing CQL towards session.
-                var rs = await Utilities.RecordsAsync(
-                    session,
-                    cql, new object[] {
-                        ids.Tenant,
-                        ids.Cloudlet
-                    });
-
                 // Returning matches to caller.
-                List<KeyValuePair<string, object>> result = new List<KeyValuePair<string, object>>();
-                foreach (var idx in rs)
+                var result = new List<KeyValuePair<string, object>>();
+                foreach (var idx in await IterateAsync(session, ids.Tenant, ids.Cloudlet))
                 {
                     var key = idx.GetValue<string>("key");
-                    if (filter == null || key.StartsWith((hidden ? "." : "+") + filter))
-                    {
-                        var value = idx.GetValue<string>("value");
-                        result.Add(new KeyValuePair<string, object>(key, value));
-                    }
+                    if (IsMatch(key, filter, hidden))
+                        result.Add(new KeyValuePair<string, object>(key, idx.GetValue<string>("value")));
                 }
                 return result;
             }
         }
 
         /// <inheritdoc/>
-        public async Task RemoveAsync(string key, bool hidden = false)
+        public async Task RemoveAsync(
+            string key,
+            bool hidden = false)
         {
             // Creating a cluster session using magic_cache keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_cache"))
@@ -129,7 +160,8 @@ namespace magic.data.cql.caching
                 // Executing CQL towards session.
                 await Utilities.ExecuteAsync(
                     session,
-                    cql, new object[] {
+                    cql,
+                    new object[] {
                         ids.Tenant,
                         ids.Cloudlet,
                         GetKey(key, hidden),
@@ -138,14 +170,20 @@ namespace magic.data.cql.caching
         }
 
         /// <inheritdoc/>
-        public Task UpsertAsync(string key, object value, DateTime utcExpiration, bool hidden = false)
+        public Task UpsertAsync(
+            string key,
+            object value,
+            DateTime utcExpiration,
+            bool hidden = false)
         {
             // Sanity checking invocation.
-            if (utcExpiration < DateTime.UtcNow)
+            if (utcExpiration < DateTime.UtcNow.AddSeconds(1))
                 throw new HyperlambdaException($"You cannot upsert a new item into your cache with an expiration date that is in the past. Cache key of item that created conflict was '{key}'");
 
             // Calculating TTL in aseconds.
-            var ttl = utcExpiration > DateTime.UtcNow.AddYears(1) ? -1 : Convert.ToInt32((utcExpiration - DateTime.UtcNow).TotalSeconds);
+            var ttl = utcExpiration > DateTime.UtcNow.AddYears(1) ?
+                -1 :
+                Convert.ToInt32((utcExpiration - DateTime.UtcNow).TotalSeconds);
 
             // Creating a cluster session using magic_cache keyspace.
             using (var session = Utilities.CreateSession(_configuration, "magic_cache"))
@@ -154,23 +192,18 @@ namespace magic.data.cql.caching
                 var ids = Utilities.Resolve(_rootResolver);
 
                 // Invoking helper method to upsert item.
-                return UpsertAsync(session, ids.Tenant, ids.Cloudlet, key, hidden, ttl, value);
+                return UpsertAsync(
+                    session,
+                    ids.Tenant,
+                    ids.Cloudlet,
+                    key,
+                    hidden,
+                    ttl,
+                    value);
             }
         }
 
         #region [ -- Private helper methods -- ]
-
-        static string GetKey(string key, bool hidden)
-        {
-            // Sanity checking invocation.
-            if (string.IsNullOrEmpty(key))
-                throw new HyperlambdaException("You cannot reference an item in your cache without providing us with a key.");
-            if (key.StartsWith(".") || key.StartsWith("+"))
-                throw new HyperlambdaException($"You cannot reference an new item in your cache that starts with a period (.) or a plus (+) - Cache key of item that created conflict was '{key}'");
-
-            // Returning full key value to caller according to visibility.
-            return (hidden ? "." : "+") + key;
-        }
 
         /*
          * Returning cache item from the specified session with the given values.
@@ -183,15 +216,16 @@ namespace magic.data.cql.caching
             string key)
         {
             // Creating our CQL.
-            var cql = "select key, value from cache where tenant = ? and cloudlet = ? and key = ?";
+            var cql = "select value from cache where tenant = ? and cloudlet = ? and key = ?";
 
             // Executing CQL towards session.
             var record = await Utilities.SingleAsync(
                 session,
-                cql, new object[] {
+                cql,
+                new object[] {
                     tenant,
                     cloudlet,
-                    ((hidden ? "." : "+") + key),
+                    GetKey(key, hidden),
                 });
 
             // Returning match to caller if any.
@@ -225,6 +259,49 @@ namespace magic.data.cql.caching
                     GetKey(key, hidden),
                     value.ToString(),
                 });
+        }
+
+        /*
+         * Helper method to iterate all cache items belonging to tenant/cloudlet combination.
+         */
+        static async Task<RowSet> IterateAsync(ISession session, string tenant, string cloudlet)
+        {
+            // Creating our CQL.
+            var cql = "select key, value from cache where tenant = ? and cloudlet = ?";
+
+            // Executing CQL towards session.
+            return await Utilities.RecordsAsync(
+                session,
+                cql,
+                new object[] {
+                    tenant,
+                    cloudlet
+                });
+        }
+
+        /*
+         * Helper method to sanity check and create the key correctly according to whether
+         * it's a hidden item or not.
+         */
+        static string GetKey(string key, bool hidden)
+        {
+            // Sanity checking invocation.
+            if (string.IsNullOrEmpty(key))
+                throw new HyperlambdaException("You cannot reference an item in your cache without providing us with a key.");
+            if (key.StartsWith(".") || key.StartsWith("+"))
+                throw new HyperlambdaException($"You cannot reference an new item in your cache that starts with a period (.) or a plus (+) - Cache key of item that created conflict was '{key}'");
+
+            // Returning full key value to caller according to visibility.
+            return (hidden ? "." : "+") + key;
+        }
+
+        /*
+         * Returns true if specified key is matching filter and hidden condition.
+         */
+        static bool IsMatch(string key, string filter, bool hidden)
+        {
+            filter = (hidden ? "." : "+") + filter;
+            return key.StartsWith(filter);
         }
 
         #endregion
