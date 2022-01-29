@@ -75,13 +75,18 @@ namespace magic.data.cql.helpers
             var cluster = configuration["magic:cql:generic:host"] ?? "127.0.0.1";
             return _clusters.GetOrAdd(cluster, (key) =>
             {
+                // Creating cluster while adding contact points.
                 var result = Cluster.Builder()
                     .AddContactPoints(key.Split(new char[] {','}, StringSplitOptions.RemoveEmptyEntries));
+                
+                // Checking if we've got credentials, and if so adding them to cluster connection.
                 var username = configuration["magic:cql:generic:credentials:username"];
                 if (!string.IsNullOrEmpty(username))
                     result = result.WithCredentials(
                         username,
                         configuration["magic:cql:generic:credentials:password"]);
+
+                // Returning cluster to caller.
                 return result.Build();
             }).Connect(keySpace);
         }
