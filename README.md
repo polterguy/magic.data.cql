@@ -122,7 +122,8 @@ alter table log with default_time_to_live = 1209600;
 
 **Notice** - The above setting for TTL implies log items will be automatically evicted after 14 days,
 since 1,209,600 seconds implies 14 days. Depending upon your needs you might want to increase or decrease this
-setting.
+setting. However, to avoid exhausting your hard drive space over time on your server, we suggest you do _not_
+entirely remove the TTL setting.
 
 To use the alternative CQL based caching implementation you'll have to create your _"magic\_cache"_ keyspace and its
 _"cache"_ table as follows.
