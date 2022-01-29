@@ -72,13 +72,19 @@ namespace magic.data.cql.helpers
 
         internal static ISession CreateSession(IConfiguration configuration, string keySpace)
         {
-            var connection = GetDefaultConnection(configuration, keySpace);
-            return _clusters.GetOrAdd(connection.Cluster, (key) =>
+            var cluster = configuration["magic:cql:generic:host"] ?? "127.0.0.1";
+            return _clusters.GetOrAdd(cluster, (key) =>
             {
-                return Cluster.Builder()
-                    .AddContactPoints(key)
-                    .Build();
-            }).Connect(connection.KeySpace);
+                var result = Cluster.Builder()
+                    .AddContactPoints(key.Split(new char[] {','}, StringSplitOptions.RemoveEmptyEntries));
+                var username = configuration["magic:cql:generic:credentials:username"];
+                if (!string.IsNullOrEmpty(username))
+                {
+                    var password = configuration["magic:cql:generic:credentials:password"];
+                    result = result.WithCredentials(username, password);
+                }
+                return result.Build();
+            }).Connect(keySpace);
         }
 
         /*
@@ -99,16 +105,6 @@ namespace magic.data.cql.helpers
         }
 
         #region [ -- Private helper methods -- ]
-
-        /*
-         * Returns the default Cluster and keyspace according to configuration settings.
-         */
-        static (string Cluster, string KeySpace) GetDefaultConnection(
-            IConfiguration configuration,
-            string keySpace)
-        {
-            return (configuration["magic:cql:generic:host"] ?? "127.0.0.1", keySpace);
-        }
 
         /*
          * Returns a prepared statement from the specified cql.

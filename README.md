@@ -2,7 +2,7 @@
 # NoSQL based IO, caching, and logging adapters for Hyperlambda
 
 This project contains alternative NoSQL file system services, implementing `IFileService`, `IFolderService`, and
-`IStreamService`, allowing you to use as an interchangeable _"virtual file system"_ for cases where you want
+`IStreamService`, allowing you to use it as an interchangeable _"virtual file system"_ for cases where you want
 to have 100% stateless magic instances. This is important if you're using Magic in a Kubernetes cluster or
 something similar, load balancing invocations, virtually resolving files and folders towards a virtual file system.
 If you take this path you'll have to configure your _"appsettings.json"_ file such as illustrated further
@@ -21,12 +21,20 @@ the IO, caching, and logging services requires you to use `generic` as your clus
   "magic": {
     "cql": {
       "generic": {
-        "host": "127.0.0.1"
+        "host": "127.0.0.1",
+        "credentials": {
+          "username": "xxx",
+          "password": "xxx"
+        }
       }
     }
   }
 }
 ```
+
+**Notice** - The _"credentials"_ parts above are optional, and can be ommitted if you don't require
+authentication to connect to your database. You can also provide multiple hosts as contact points,
+by separating multiple IP addresses or hosts by a comma (,).
 
 The above configures the adapter to use `127.0.0.1` as the host for your contact point or cluster. To configure
 the adapter to store files and folders inside of its CQL based database, you can alternatively add something such
