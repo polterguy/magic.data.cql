@@ -237,10 +237,11 @@ remove-nodes:x:../**/io.file.list-recursively/*
 
 ## Internals
 
-This project is created to be a multi-tenant solution, implying multiple users, and/or cloudlets can use the same physical
-database for both files, log entries and cache entries. However, this implies you are able to correctly resolve the 
+This project is created to be a multi-tenant solution, implying multiple users, and/or cloudlets, can use the same physical
+database for both files, log entries, and cache entries. However, this implies you are able to correctly resolve the 
 _"tenant"_ parts and the _"cloudlet"_ parts for all the above tables. How to achieve this is currently beyond the scope
-of this document.
+of this document, but our suggestion is to create some sort of `IRootResolver` service implementation that is dynamically
+created according to the `Host` HTTP header of requests.
 
 ## Project website
 
