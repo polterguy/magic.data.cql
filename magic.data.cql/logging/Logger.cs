@@ -50,73 +50,73 @@ namespace magic.data.cql.logging
         /// <inheritdoc/>
         public Task DebugAsync(string content)
         {
-            return InsertLogEntryAsync(_signaler, "debug", content, null, null);
+            return InsertLogEntryAsync("debug", content, null, null);
         }
 
         /// <inheritdoc/>
         public Task DebugAsync(string content, Dictionary<string, string> meta)
         {
-            return InsertLogEntryAsync(_signaler, "debug", content, meta, null);
+            return InsertLogEntryAsync("debug", content, meta, null);
         }
 
         /// <inheritdoc/>
         public Task InfoAsync(string content)
         {
-            return InsertLogEntryAsync(_signaler, "info", content, null, null);
+            return InsertLogEntryAsync("info", content, null, null);
         }
 
         /// <inheritdoc/>
         public Task InfoAsync(string content, Dictionary<string, string> meta)
         {
-            return InsertLogEntryAsync(_signaler, "info", content, meta, null);
+            return InsertLogEntryAsync("info", content, meta, null);
         }
 
         /// <inheritdoc/>
         public Task ErrorAsync(string content)
         {
-            return InsertLogEntryAsync(_signaler, "error", content, null, null);
+            return InsertLogEntryAsync("error", content, null, null);
         }
 
         /// <inheritdoc/>
         public Task ErrorAsync(string content, Dictionary<string, string> meta)
         {
-            return InsertLogEntryAsync(_signaler, "error", content, meta, null);
+            return InsertLogEntryAsync("error", content, meta, null);
         }
 
         /// <inheritdoc/>
         public Task ErrorAsync(string content, string stackTrace)
         {
-            return InsertLogEntryAsync(_signaler, "error", content, null, stackTrace);
+            return InsertLogEntryAsync("error", content, null, stackTrace);
         }
 
         /// <inheritdoc/>
         public Task ErrorAsync(string content, Dictionary<string, string> meta, string stackTrace)
         {
-            return InsertLogEntryAsync(_signaler, "error", content, meta, stackTrace);
+            return InsertLogEntryAsync("error", content, meta, stackTrace);
         }
 
         /// <inheritdoc/>
         public Task FatalAsync(string content)
         {
-            return InsertLogEntryAsync(_signaler, "fatal", content, null, null);
+            return InsertLogEntryAsync("fatal", content, null, null);
         }
 
         /// <inheritdoc/>
         public Task FatalAsync(string content, Dictionary<string, string> meta)
         {
-            return InsertLogEntryAsync(_signaler, "fatal", content, meta, null);
+            return InsertLogEntryAsync("fatal", content, meta, null);
         }
 
         /// <inheritdoc/>
         public Task FatalAsync(string content, string stackTrace)
         {
-            return InsertLogEntryAsync(_signaler, "fatal", content, null, stackTrace);
+            return InsertLogEntryAsync("fatal", content, null, stackTrace);
         }
 
         /// <inheritdoc/>
         public Task FatalAsync(string content, Dictionary<string, string> meta, string stackTrace)
         {
-            return InsertLogEntryAsync(_signaler, "fatal", content, meta, stackTrace);
+            return InsertLogEntryAsync("fatal", content, meta, stackTrace);
         }
 
         #endregion
@@ -265,7 +265,6 @@ namespace magic.data.cql.logging
         #region [ -- Private helper methods and properties -- ]
 
         async Task InsertLogEntryAsync(
-            ISignaler signaler,
             string type,
             string content,
             Dictionary<string, string> meta,
