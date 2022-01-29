@@ -88,6 +88,7 @@ namespace magic.data.cql.helpers
 
                 // Returning cluster to caller.
                 return result.Build();
+
             }).Connect(keySpace);
         }
 
