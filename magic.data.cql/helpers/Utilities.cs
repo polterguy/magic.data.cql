@@ -79,10 +79,9 @@ namespace magic.data.cql.helpers
                     .AddContactPoints(key.Split(new char[] {','}, StringSplitOptions.RemoveEmptyEntries));
                 var username = configuration["magic:cql:generic:credentials:username"];
                 if (!string.IsNullOrEmpty(username))
-                {
-                    var password = configuration["magic:cql:generic:credentials:password"];
-                    result = result.WithCredentials(username, password);
-                }
+                    result = result.WithCredentials(
+                        username,
+                        configuration["magic:cql:generic:credentials:password"]);
                 return result.Build();
             }).Connect(keySpace);
         }
