@@ -14,7 +14,9 @@ details about how to configure these parts.
 ## Configuration
 
 The primary configuration for the project to apply for your _"appsettings.json"_ file can be found below. Notice,
-the IO, caching, and logging services requires you to use `generic` as your cluster name, and you cannot change this.
+although you can create as many NoSQL cluster connection settings as you wish, and use these in your own code,
+the IO, caching, and logging services requires you to use `generic` as your cluster name, and you cannot change
+this.
 
 ```json
 {
