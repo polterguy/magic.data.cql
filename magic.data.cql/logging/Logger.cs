@@ -19,7 +19,6 @@ namespace magic.data.cql.logging
     /// <inheritdoc/>
     public class Logger : ILogger, ILogQuery
     {
-        readonly ISignaler _signaler;
         readonly IRootResolver _rootResolver;
         readonly IConfiguration _configuration;
         readonly IMagicConfiguration _magicConfiguration;
@@ -27,17 +26,14 @@ namespace magic.data.cql.logging
         /// <summary>
         /// Constructs a new instance of the default ILogger implementation.
         /// </summary>
-        /// <param name="signaler">ISignaler implementation.</param>
         /// <param name="rootResolver">Needed to figure out tenant and cloudlet IDs.</param>
         /// <param name="configuration">Configuration object.</param>
         /// <param name="magicConfiguration">Configuration object.</param>
         public Logger(
-            ISignaler signaler,
             IRootResolver rootResolver,
             IConfiguration configuration,
             IMagicConfiguration magicConfiguration)
         {
-            _signaler = signaler;
             _rootResolver = rootResolver;
             _configuration = configuration;
             _magicConfiguration = magicConfiguration;
