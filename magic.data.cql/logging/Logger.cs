@@ -11,7 +11,6 @@ using Microsoft.Extensions.Configuration;
 using magic.node.contracts;
 using magic.node.extensions;
 using magic.data.cql.helpers;
-using magic.signals.contracts;
 using magic.lambda.logging.contracts;
 
 namespace magic.data.cql.logging
