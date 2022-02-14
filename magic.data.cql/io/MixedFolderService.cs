@@ -149,21 +149,24 @@ namespace magic.data.cql.io
          */
         IFolderService GetImplementation(string destinationPath, bool change)
         {
-            var relPath = _rootResolver.RelativePath(destinationPath);
+            var relPath = 
+                destinationPath.StartsWith(_rootResolver.DynamicFiles) ? 
+                _rootResolver.RelativePath(destinationPath) : 
+                destinationPath.Substring(_rootResolver.RootFolder.Length - 1);
             var splits = relPath.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
             if (splits.Length > 1)
             {
                 switch (splits.First())
                 {
                     // System files, using local file storage service.
-                    case "system":
-                    case "misc":
+                    case "modules":
+                    case "etc":
                         if (change)
                             throw new HyperlambdaException($"The file '{destinationPath}' is read only with your current file service implementation");
-                        return _folderService;
+                        return _cqlFolderService;
                 }
             }
-            return _cqlFolderService;
+            return _folderService;
         }
 
         #endregion

@@ -2,13 +2,13 @@
  * Magic Cloud, copyright Aista, Ltd. See the attached LICENSE file for details.
  */
 
+using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using magic.node.services;
 using magic.node.contracts;
 using magic.node.extensions;
-using System;
-using System.Linq;
 
 namespace magic.data.cql.io
 {
@@ -68,21 +68,24 @@ namespace magic.data.cql.io
          */
         IStreamService GetImplementation(string destinationPath, bool change)
         {
-            var relPath = _rootResolver.RelativePath(destinationPath);
+            var relPath = 
+                destinationPath.StartsWith(_rootResolver.DynamicFiles) ? 
+                _rootResolver.RelativePath(destinationPath) : 
+                destinationPath.Substring(_rootResolver.RootFolder.Length - 1);
             var splits = relPath.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
             if (splits.Length > 1)
             {
                 switch (splits.First())
                 {
                     // System files, using local file storage service.
-                    case "system":
-                    case "misc":
+                    case "modules":
+                    case "etc":
                         if (change)
                             throw new HyperlambdaException($"The file '{destinationPath}' is read only with your current stream service implementation");
-                        return _streamService;
+                        return _cqlStreamService;
                 }
             }
-            return _cqlStreamService;
+            return _streamService;
         }
 
         #endregion
