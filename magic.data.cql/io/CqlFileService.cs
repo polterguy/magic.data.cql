@@ -134,7 +134,7 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public List<string> ListFilesRecursively(string folder, string extension = null)
         {
-            return ListFilesAsync(folder, extension).GetAwaiter().GetResult();
+            return ListFilesRecursivelyAsync(folder, extension).GetAwaiter().GetResult();
         }
 
         /// <inheritdoc />
