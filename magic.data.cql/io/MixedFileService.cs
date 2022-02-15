@@ -98,7 +98,6 @@ namespace magic.data.cql.io
         /// <inheritdoc />
         public async Task<List<string>> ListFilesRecursivelyAsync(string folder, string extension = null)
         {
-            var relFolder = _rootResolver.RelativePath(folder);
             if (folder == "/")
             {
                 // Fetching files from both folders.
@@ -146,7 +145,6 @@ namespace magic.data.cql.io
             string folder,
             string extension)
         {
-            var relFolder = _rootResolver.RelativePath(folder);
             if (folder == "/")
             {
                 // Fetching files from both folders.
