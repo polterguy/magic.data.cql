@@ -20,22 +20,22 @@ namespace magic.data.cql.logging
     {
         readonly IRootResolver _rootResolver;
         readonly IConfiguration _configuration;
-        readonly IMagicConfiguration _magicConfiguration;
+        readonly LogSettings _settings;
 
         /// <summary>
         /// Constructs a new instance of the default ILogger implementation.
         /// </summary>
         /// <param name="rootResolver">Needed to figure out tenant and cloudlet IDs.</param>
         /// <param name="configuration">Configuration object.</param>
-        /// <param name="magicConfiguration">Configuration object.</param>
+        /// <param name="settings">Configuration object.</param>
         public Logger(
             IRootResolver rootResolver,
             IConfiguration configuration,
-            IMagicConfiguration magicConfiguration)
+            LogSettings settings)
         {
             _rootResolver = rootResolver;
             _configuration = configuration;
-            _magicConfiguration = magicConfiguration;
+            _settings = settings;
         }
 
         #region [ -- Interface implementations -- ]
@@ -266,28 +266,27 @@ namespace magic.data.cql.logging
             string stackTrace)
         {
             // Retrieving IDbConnection to use.
-            var level = _magicConfiguration["magic:logging:level"] ?? "debug";
             var shouldLog = false;
             switch (type)
             {
                 case "debug":
-                    shouldLog = level == "debug";
+                    shouldLog = _settings.Level == "debug";
                     break;
 
                 case "info":
-                    shouldLog = level == "info" || level == "debug";
+                    shouldLog = _settings.Level == "info" || _settings.Level == "debug";
                     break;
 
                 case "error":
-                    shouldLog = level == "error" || level == "info" || level == "debug";
+                    shouldLog = _settings.Level == "error" || _settings.Level == "info" || _settings.Level == "debug";
                     break;
 
                 case "fatal":
-                    shouldLog = level == "fatal" || level == "error" || level == "info" || level == "debug";
+                    shouldLog = _settings.Level == "fatal" || _settings.Level == "error" || _settings.Level == "info" || _settings.Level == "debug";
                     break;
 
                 default:
-                    if (level != "off")
+                    if (_settings.Level != "off")
                         throw new HyperlambdaException($"Configuration error, I only understand 'debug', 'info', 'error', 'fatal', and 'off' as magic:logging:level.");
                     break;
             }
