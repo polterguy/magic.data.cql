@@ -48,9 +48,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="magic.signals" Version="11.0.3" />
-    <PackageReference Include="magic.node.extensions" Version="11.0.3" />
-    <PackageReference Include="magic.lambda.logging" Version="11.0.3" />
-    <PackageReference Include="magic.lambda.caching" Version="11.0.3" />
+    <PackageReference Include="magic.signals" Version="11.0.4" />
+    <PackageReference Include="magic.node.extensions" Version="11.0.4" />
+    <PackageReference Include="magic.lambda.logging" Version="11.0.4" />
+    <PackageReference Include="magic.lambda.caching" Version="11.0.4" />
   </ItemGroup>
 </Project>
