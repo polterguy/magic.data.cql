@@ -77,7 +77,8 @@ namespace magic.data.cql.helpers
             {
                 // Creating cluster while adding contact points.
                 var result = Cluster.Builder()
-                    .AddContactPoints(key.Split(new char[] {','}, StringSplitOptions.RemoveEmptyEntries));
+                    .AddContactPoints(key.Split(new char[] {','}, StringSplitOptions.RemoveEmptyEntries))
+                    .WithPort(int.Parse(configuration["magic:cql:generic:port"] ?? "9042"));
                 
                 // Checking if we've got credentials, and if so adding them to cluster connection.
                 var username = configuration["magic:cql:generic:credentials:username"];
