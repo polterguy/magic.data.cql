@@ -10,7 +10,7 @@
     <Description>CQL data adapters for Magic to store files and folders, etc. To use package go to https://polterguy.github.io</Description>
     <PackageProjectUrl>https://github.com/polterguy/magic.data.cql</PackageProjectUrl>
     <PackOnBuild>true</PackOnBuild>
-    <PackageVersion>11.0.5</PackageVersion>
+    <PackageVersion>13.0.0</PackageVersion>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/polterguy/magic.data.cql.git</RepositoryUrl>
@@ -48,9 +48,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="magic.signals" Version="11.0.5" />
-    <PackageReference Include="magic.node.extensions" Version="11.0.5" />
-    <PackageReference Include="magic.lambda.logging" Version="11.0.5" />
-    <PackageReference Include="magic.lambda.caching" Version="11.0.5" />
+    <PackageReference Include="magic.signals" Version="13.0.0" />
+    <PackageReference Include="magic.node.extensions" Version="13.0.0" />
+    <PackageReference Include="magic.lambda.logging" Version="13.0.0" />
+    <PackageReference Include="magic.lambda.caching" Version="13.0.0" />
   </ItemGroup>
 </Project>
