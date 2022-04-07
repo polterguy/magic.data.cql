@@ -160,7 +160,7 @@ namespace magic.data.cql.logging
                     result.Add(new LogItem
                     {
                         Id = Convert.ToString(idx.GetValue<Guid>("id")),
-                        Created = dt.EnsureUtc(),
+                        Created = dt.EnsureTimezone(true),
                         Type = idx.GetValue<string>("type"),
                         Content = idx.GetValue<string>("content"),
                         Exception = idx.GetValue<string>("exception"),
@@ -234,7 +234,7 @@ namespace magic.data.cql.logging
                 return new LogItem
                 {
                     Id = Convert.ToString(row.GetValue<Guid>("id")),
-                    Created = dt.EnsureUtc(),
+                    Created = dt.EnsureTimezone(true),
                     Type = row.GetValue<string>("type"),
                     Content = row.GetValue<string>("content"),
                     Exception = row.GetValue<string>("exception"),

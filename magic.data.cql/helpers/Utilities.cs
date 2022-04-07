@@ -80,12 +80,17 @@ namespace magic.data.cql.helpers
                     .AddContactPoints(key.Split(new char[] {','}, StringSplitOptions.RemoveEmptyEntries))
                     .WithPort(int.Parse(configuration["magic:cql:generic:port"] ?? "9042"));
                 
-                // Checking if we've got credentials, and if so adding them to cluster connection.
+                // Checking if we've got credentials, and if so adding it to cluster connection.
                 var username = configuration["magic:cql:generic:credentials:username"];
                 if (!string.IsNullOrEmpty(username))
                     result = result.WithCredentials(
                         username,
                         configuration["magic:cql:generic:credentials:password"]);
+                
+                // Checking if we've got port configuration, and if so adding it to cluster connection.
+                var port = configuration["magic:cql:generic:port"];
+                if (!string.IsNullOrEmpty(port))
+                    result = result.WithPort(int.Parse(port));
 
                 // Returning cluster to caller.
                 return result.Build();
