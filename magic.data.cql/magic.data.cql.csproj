@@ -10,7 +10,7 @@
     <Description>CQL data adapters for Magic to store files and folders, etc. To use package go to https://polterguy.github.io</Description>
     <PackageProjectUrl>https://aista.com</PackageProjectUrl>
     <PackOnBuild>true</PackOnBuild>
-    <PackageVersion>13.3.0</PackageVersion>
+    <PackageVersion>13.3.1</PackageVersion>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/polterguy/magic.data.cql</RepositoryUrl>
@@ -50,7 +50,7 @@
   <ItemGroup>
     <PackageReference Include="magic.signals" Version="13.3.0" />
     <PackageReference Include="magic.node.extensions" Version="13.3.0" />
-    <PackageReference Include="magic.lambda.logging" Version="13.3.0" />
+    <PackageReference Include="magic.lambda.logging" Version="13.3.1" />
     <PackageReference Include="magic.lambda.caching" Version="13.3.0" />
   </ItemGroup>
 </Project>
